@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
+  Animated,
   View,
   Text,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
@@ -29,6 +31,8 @@ export default function GameScreen() {
     settings,
     isSolvedFlag,
     elapsedSeconds,
+    mistakeCount,
+    hintCount,
     startNewGame,
     isGameStarted,
     playerGrid,
@@ -45,6 +49,8 @@ export default function GameScreen() {
   const modeLabel = mode === 'zen' ? 'Zen' : 'Expert';
   const isPaused = isGameStarted && !isSolvedFlag && !timerActive;
   const pauseAccent = dark ? Colors.playerDigitDark : Colors.accent;
+  const formattedElapsed = formatElapsedTime(elapsedSeconds);
+  const celebrationScale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (isGameStarted && !isSolvedFlag) resumeGame();
@@ -53,6 +59,43 @@ export default function GameScreen() {
   useEffect(() => {
     return () => pauseGame();
   }, [pauseGame]);
+
+  useEffect(() => {
+    if (!isSolvedFlag) {
+      celebrationScale.stopAnimation();
+      celebrationScale.setValue(1);
+      return;
+    }
+
+    const pulse = Animated.loop(
+      Animated.sequence([
+        Animated.timing(celebrationScale, {
+          toValue: 1.18,
+          duration: 520,
+          useNativeDriver: true,
+        }),
+        Animated.timing(celebrationScale, {
+          toValue: 1,
+          duration: 520,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+
+    pulse.start();
+    return () => pulse.stop();
+  }, [celebrationScale, isSolvedFlag]);
+
+  const handleShareScore = useCallback(() => {
+    void Share.share({
+      message: [
+        `J’ai terminé un Sudoku en mode ${modeLabel}, difficulté ${difficulty}.`,
+        `Temps : ${formattedElapsed}`,
+        `Erreurs : ${mistakeCount}`,
+        `Indices utilisés : ${hintCount}`,
+      ].join('\n'),
+    }).catch(() => undefined);
+  }, [difficulty, formattedElapsed, hintCount, mistakeCount, modeLabel]);
 
   const stats = useMemo(() => {
     let filled = 0;
@@ -224,17 +267,42 @@ export default function GameScreen() {
               { backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground },
             ]}
           >
-            <View style={[styles.modalIconWrap, { backgroundColor: Colors.successSurface }]}>
-              <Ionicons name="trophy-outline" size={42} color={Colors.success} />
-            </View>
+            <Animated.View
+              style={[
+                styles.modalIconWrap,
+                {
+                  backgroundColor: Colors.successSurface,
+                  transform: [{ scale: celebrationScale }],
+                },
+              ]}
+            >
+              <Text style={styles.celebrationEmoji}>🎉</Text>
+            </Animated.View>
             <Text style={[styles.modalTitle, { color: text }]}>Bravo, grille terminée !</Text>
             <Text style={[styles.modalSubtitle, { color: subText }]}>
               Mode {modeLabel} · {difficulty}
             </Text>
 
             <View style={styles.modalStats}>
-              <Stat label="Temps" value={formatElapsedTime(elapsedSeconds)} dark={dark} />
-              <Stat label="Erreurs" value={String(stats.errors)} dark={dark} />
+              <Stat
+                icon="speedometer-outline"
+                label="Difficulté"
+                value={difficulty}
+                dark={dark}
+              />
+              <Stat icon="time-outline" label="Temps" value={formattedElapsed} dark={dark} />
+              <Stat
+                icon="alert-circle-outline"
+                label="Erreurs"
+                value={String(mistakeCount)}
+                dark={dark}
+              />
+              <Stat
+                icon="bulb-outline"
+                label="Indices"
+                value={String(hintCount)}
+                dark={dark}
+              />
             </View>
 
             <TouchableOpacity
@@ -245,6 +313,24 @@ export default function GameScreen() {
               accessibilityRole="button"
             >
               <Text style={styles.modalBtnText}>Nouvelle partie</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.modalShareBtn,
+                { borderColor: dark ? Colors.borderDark : Colors.border },
+              ]}
+              onPress={handleShareScore}
+              accessibilityRole="button"
+              accessibilityLabel="Partager mon score"
+            >
+              <Ionicons
+                name="share-social-outline"
+                size={18}
+                color={dark ? Colors.textPrimaryDark : Colors.textPrimary}
+              />
+              <Text style={[styles.modalShareText, { color: text }]}>
+                Partager mon score
+              </Text>
             </TouchableOpacity>
             <Pressable
               onPress={() => router.back()}
@@ -262,7 +348,17 @@ export default function GameScreen() {
   );
 }
 
-function Stat({ label, value, dark }: { label: string; value: string; dark: boolean }) {
+function Stat({
+  icon,
+  label,
+  value,
+  dark,
+}: {
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+  label: string;
+  value: string;
+  dark: boolean;
+}) {
   return (
     <View
       style={[
@@ -270,6 +366,11 @@ function Stat({ label, value, dark }: { label: string; value: string; dark: bool
         { backgroundColor: dark ? Colors.surfaceDark : Colors.surface },
       ]}
     >
+      <Ionicons
+        name={icon}
+        size={18}
+        color={dark ? Colors.playerDigitDark : Colors.accent}
+      />
       <Text style={[styles.statValue, { color: dark ? Colors.textPrimaryDark : Colors.textPrimary }]}>
         {value}
       </Text>
@@ -443,6 +544,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: SPACING.md,
   },
+  celebrationEmoji: {
+    fontSize: 40,
+    lineHeight: 48,
+  },
   modalTitle: {
     fontSize: 24,
     fontWeight: '800',
@@ -456,19 +561,26 @@ const styles = StyleSheet.create({
   },
   modalStats: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     width: '100%',
     gap: SPACING.sm,
     marginBottom: SPACING.lg,
   },
   statCard: {
-    flex: 1,
+    flexBasis: '47%',
+    flexGrow: 1,
+    minHeight: 92,
     borderRadius: BORDER_RADIUS.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.xs,
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '800',
+    textAlign: 'center',
   },
   statLabel: {
     marginTop: 2,
@@ -484,6 +596,21 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.sm,
   },
   modalBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
+  modalShareBtn: {
+    width: '100%',
+    minHeight: 50,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: SPACING.sm,
+    marginBottom: SPACING.sm,
+  },
+  modalShareText: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
   modalSecondary: {
     minHeight: MIN_TOUCH_TARGET,
     justifyContent: 'center',

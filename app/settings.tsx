@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,8 +8,8 @@ import {
   Switch,
   TouchableOpacity,
   ScrollView,
-  Alert,
-  Platform,
+  Modal,
+  Pressable,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useRouter } from 'expo-router';
@@ -20,6 +20,7 @@ import ModeToggle from '@/components/ModeToggle';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const {
     settings,
     updateSettings,
@@ -38,37 +39,14 @@ export default function SettingsScreen() {
   const hasActiveGame = isGameStarted || hasSavedGame;
 
   const handleClearSavedGame = async () => {
+    setShowDeleteModal(false);
     await clearSavedGame();
     router.dismissTo('/');
   };
 
   const confirmClearSavedGame = () => {
-    if (Platform.OS === 'web') {
-      const confirmed =
-        typeof window !== 'undefined' &&
-        window.confirm('La partie en cours sera supprimée de cet appareil.');
-
-      if (confirmed) {
-        void handleClearSavedGame();
-      }
-
-      return;
-    }
-
-    Alert.alert(
-      'Effacer la partie sauvegardée',
-      'La partie en cours sera supprimée de cet appareil.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Effacer',
-          style: 'destructive',
-          onPress: () => {
-            void handleClearSavedGame();
-          },
-        },
-      ]
-    );
+    if (!hasActiveGame) return;
+    setShowDeleteModal(true);
   };
 
   return (
@@ -189,6 +167,52 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </ScrollView>
       </View>
+
+      <Modal visible={showDeleteModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.deleteModalCard,
+              { backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground },
+            ]}
+          >
+            <View
+              style={[
+                styles.deleteModalIcon,
+                { backgroundColor: dark ? Colors.dangerSurfaceDark : Colors.dangerSurface },
+              ]}
+            >
+              <Ionicons name="trash-outline" size={28} color={Colors.danger} />
+            </View>
+            <Text style={[styles.deleteModalTitle, { color: text }]}>
+              Supprimer la partie ?
+            </Text>
+            <Text style={[styles.deleteModalText, { color: subText }]}>
+              La progression actuelle sera supprimée de cet appareil. Cette action est définitive.
+            </Text>
+
+            <TouchableOpacity
+              onPress={() => {
+                void handleClearSavedGame();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Confirmer la suppression de la partie"
+              style={[styles.deleteModalDangerBtn, { backgroundColor: Colors.danger }]}
+            >
+              <Text style={styles.deleteModalDangerText}>Supprimer la partie</Text>
+            </TouchableOpacity>
+
+            <Pressable
+              onPress={() => setShowDeleteModal(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Annuler la suppression"
+              style={styles.deleteModalCancelBtn}
+            >
+              <Text style={[styles.deleteModalCancelText, { color: subText }]}>Annuler</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -287,5 +311,67 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.dangerSurface,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: SPACING.lg,
+  },
+  deleteModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    borderRadius: BORDER_RADIUS.xl,
+    padding: SPACING.xl,
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+  },
+  deleteModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+  },
+  deleteModalTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: SPACING.sm,
+  },
+  deleteModalText: {
+    fontSize: 14,
+    fontWeight: '600',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: SPACING.lg,
+  },
+  deleteModalDangerBtn: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.sm,
+  },
+  deleteModalDangerText: {
+    color: Colors.white,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  deleteModalCancelBtn: {
+    minHeight: MIN_TOUCH_TARGET,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+  },
+  deleteModalCancelText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
 });
