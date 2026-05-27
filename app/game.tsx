@@ -43,6 +43,8 @@ export default function GameScreen() {
   const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
   const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
   const modeLabel = mode === 'zen' ? 'Zen' : 'Expert';
+  const isPaused = isGameStarted && !isSolvedFlag && !timerActive;
+  const pauseAccent = dark ? Colors.playerDigitDark : Colors.accent;
 
   useEffect(() => {
     if (isGameStarted && !isSolvedFlag) resumeGame();
@@ -87,21 +89,45 @@ export default function GameScreen() {
         </TouchableOpacity>
 
         <View style={styles.timerCluster}>
-          <Timer />
+          <View
+            style={[
+              styles.timerPill,
+              {
+                backgroundColor: dark ? Colors.surfaceDark : Colors.surface,
+                borderColor: isPaused ? pauseAccent : 'transparent',
+              },
+            ]}
+            accessibilityRole="text"
+          >
+            <Timer />
+            {isPaused && (
+              <Text style={[styles.pauseStatus, { color: pauseAccent }]}>
+                En pause
+              </Text>
+            )}
+          </View>
           <Pressable
             onPress={timerActive ? pauseGame : resumeGame}
-            hitSlop={10}
             accessibilityRole="button"
-            accessibilityLabel={timerActive ? 'Mettre le timer en pause' : 'Reprendre le timer'}
+            accessibilityLabel={
+              timerActive ? 'Mettre la partie en pause' : 'Reprendre la partie'
+            }
             style={[
               styles.pauseBtn,
-              { backgroundColor: dark ? Colors.surfaceDark : Colors.surface },
+              {
+                backgroundColor: timerActive
+                  ? Colors.accent
+                  : dark
+                    ? Colors.surfaceDark
+                    : Colors.surface,
+                borderColor: timerActive ? Colors.accent : pauseAccent,
+              },
             ]}
           >
             <Ionicons
-              name={timerActive ? 'pause-outline' : 'play-outline'}
-              size={18}
-              color={subText}
+              name={timerActive ? 'pause' : 'play'}
+              size={20}
+              color={timerActive ? Colors.white : pauseAccent}
             />
           </Pressable>
         </View>
@@ -276,10 +302,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
   },
+  timerPill: {
+    minWidth: 76,
+    minHeight: MIN_TOUCH_TARGET,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+  },
+  pauseStatus: {
+    marginTop: -1,
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
   pauseBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: MIN_TOUCH_TARGET,
+    height: MIN_TOUCH_TARGET,
+    borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
