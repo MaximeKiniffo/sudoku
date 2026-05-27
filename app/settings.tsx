@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { useRouter } from 'expo-router';
@@ -36,7 +37,24 @@ export default function SettingsScreen() {
   const rowBorder = dark ? Colors.surfaceDark : Colors.border;
   const hasActiveGame = isGameStarted || hasSavedGame;
 
+  const handleClearSavedGame = async () => {
+    await clearSavedGame();
+    router.dismissTo('/');
+  };
+
   const confirmClearSavedGame = () => {
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof window !== 'undefined' &&
+        window.confirm('La partie en cours sera supprimée de cet appareil.');
+
+      if (confirmed) {
+        void handleClearSavedGame();
+      }
+
+      return;
+    }
+
     Alert.alert(
       'Effacer la partie sauvegardée',
       'La partie en cours sera supprimée de cet appareil.',
@@ -46,7 +64,7 @@ export default function SettingsScreen() {
           text: 'Effacer',
           style: 'destructive',
           onPress: () => {
-            void clearSavedGame();
+            void handleClearSavedGame();
           },
         },
       ]
@@ -146,14 +164,14 @@ export default function SettingsScreen() {
           <SectionTitle label="Données" color={subText} />
           <TouchableOpacity
             onPress={confirmClearSavedGame}
-            disabled={!hasSavedGame}
+            disabled={!hasActiveGame}
             accessibilityRole="button"
-            accessibilityState={{ disabled: !hasSavedGame }}
+            accessibilityState={{ disabled: !hasActiveGame }}
             style={[
               styles.dangerRow,
               {
                 borderColor: rowBorder,
-                opacity: hasSavedGame ? 1 : 0.45,
+                opacity: hasActiveGame ? 1 : 0.45,
               },
             ]}
           >
@@ -161,7 +179,7 @@ export default function SettingsScreen() {
               <Ionicons name="trash-outline" size={18} color={Colors.danger} />
             </View>
             <View style={styles.rowLabelBlock}>
-              <Text style={[styles.rowLabel, { color: hasSavedGame ? Colors.danger : subText }]}>
+              <Text style={[styles.rowLabel, { color: hasActiveGame ? Colors.danger : subText }]}>
                 Effacer la partie sauvegardée
               </Text>
               <Text style={[styles.rowSub, { color: subText }]}>
