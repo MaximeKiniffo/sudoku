@@ -1,8 +1,10 @@
 import { Dimensions } from 'react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
-export const GRID_SIZE = Math.min(width - 24, 380);
+const MAX_GRID_SIZE = height < 700 ? 300 : height < 780 ? 330 : 380;
+
+export const GRID_SIZE = Math.min(width - 24, MAX_GRID_SIZE);
 export const CELL_SIZE = GRID_SIZE / 9;
 
 export const DIFFICULTIES = ['Facile', 'Moyen', 'Difficile', 'Expert'] as const;
@@ -29,3 +31,5 @@ export const SPACING = {
   lg: 24,
   xl: 32,
 };
+
+export const MIN_TOUCH_TARGET = 44;

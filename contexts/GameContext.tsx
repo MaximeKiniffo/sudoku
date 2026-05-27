@@ -1,3 +1,5 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import React, {
   createContext,
   useContext,
@@ -6,7 +8,7 @@ import React, {
   useCallback,
   useEffect,
 } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import {
   Grid,
   generatePuzzle,
@@ -29,51 +31,63 @@ export interface CellColor {
 export interface ThreadSnapshot {
   grid: Grid;
   candidates: number[][][];
+  hintedCells: HintedCells;
   label: string;
 }
 
-interface Settings {
+export interface Settings {
   theme: 'light' | 'dark';
   showErrors: boolean;
-  candidateSize: number; // 8–14
+  candidateSize: number;
 }
 
-interface GameState {
-  // Config
+export interface SavedGameState {
   mode: AppMode;
   difficulty: Difficulty;
   settings: Settings;
-
-  // Puzzle data
   puzzle: Grid;
   solution: Grid;
   initial: boolean[][];
   playerGrid: Grid;
-
-  // Expert: candidates stored as number[][] per cell (user-toggled)
-  userCandidates: number[][][]; // [row][col] = list of toggled candidate numbers
-  autoCandidates: Set<number>[][];
-
-  // Selection
-  selectedCell: { row: number; col: number } | null;
-  selectedDigit: number | null; // for highlighting all occurrences
-
-  // Input mode (expert only)
-  inputMode: InputMode;
-
-  // Cell colors (expert coloring tool)
+  userCandidates: number[][][];
   cellColors: Record<string, string>;
-
-  // Thread snapshots (expert)
   threads: ThreadSnapshot[];
+  selectedCell: { row: number; col: number } | null;
+  selectedDigit: number | null;
+  elapsedSeconds: number;
+  hintedCells: HintedCells;
+  isGameStarted: boolean;
+  savedAt: string;
+}
 
-  // Timer
+type HintedCells = Record<string, true>;
+
+type SaveableGameState = Omit<SavedGameState, 'savedAt'> & {
+  isHydrated: boolean;
+  isSolvedFlag: boolean;
+};
+
+interface GameState {
+  mode: AppMode;
+  difficulty: Difficulty;
+  settings: Settings;
+  puzzle: Grid;
+  solution: Grid;
+  initial: boolean[][];
+  playerGrid: Grid;
+  userCandidates: number[][][];
+  autoCandidates: Set<number>[][];
+  selectedCell: { row: number; col: number } | null;
+  selectedDigit: number | null;
+  inputMode: InputMode;
+  cellColors: Record<string, string>;
+  threads: ThreadSnapshot[];
   elapsedSeconds: number;
   timerActive: boolean;
-
-  // State flags
   isSolvedFlag: boolean;
   isGameStarted: boolean;
+  hasSavedGame: boolean;
+  isHydrated: boolean;
 }
 
 interface GameContextValue extends GameState {
@@ -93,7 +107,14 @@ interface GameContextValue extends GameState {
   getHint: () => void;
   pauseTimer: () => void;
   resumeTimer: () => void;
+  pauseGame: () => void;
+  resumeGame: () => void;
+  loadSavedGame: () => Promise<boolean>;
+  clearSavedGame: () => Promise<void>;
 }
+
+const SETTINGS_STORAGE_KEY = 'sudoku:settings:v1';
+const GAME_STORAGE_KEY = 'sudoku:saved-game:v1';
 
 const defaultSettings: Settings = {
   theme: 'light',
@@ -101,9 +122,54 @@ const defaultSettings: Settings = {
   candidateSize: 10,
 };
 
-const defaultGrid: Grid = Array.from({ length: 9 }, () => Array(9).fill(null));
+const createEmptyGrid = (): Grid =>
+  Array.from({ length: 9 }, () => Array(9).fill(null));
+
+const createInitialGrid = (): boolean[][] =>
+  Array.from({ length: 9 }, () => Array(9).fill(false));
+
+const createEmptyCandidates = (): number[][][] =>
+  Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => []));
+
+const createEmptyHintedCells = (): HintedCells => ({});
+
+const getCellKey = (row: number, col: number) => `${row}-${col}`;
+
+const cloneCandidates = (candidates: number[][][] = createEmptyCandidates()) =>
+  candidates.map((r) => r.map((c) => [...c]));
+
+const cloneHintedCells = (hintedCells?: HintedCells | null): HintedCells => ({
+  ...(hintedCells ?? {}),
+});
+
+const normalizeThread = (thread: Partial<ThreadSnapshot>): ThreadSnapshot => ({
+  grid: thread.grid ? deepCopyGrid(thread.grid) : createEmptyGrid(),
+  candidates: cloneCandidates(thread.candidates),
+  hintedCells: cloneHintedCells(thread.hintedCells),
+  label: thread.label ?? 'Thread',
+});
+
+const defaultGrid = createEmptyGrid();
 
 const GameContext = createContext<GameContextValue | null>(null);
+
+function triggerHaptic(type: 'selection' | 'impact' | 'success' = 'selection') {
+  if (Platform.OS === 'web') return;
+
+  if (type === 'impact') {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => undefined);
+    return;
+  }
+
+  if (type === 'success') {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+      () => undefined
+    );
+    return;
+  }
+
+  void Haptics.selectionAsync().catch(() => undefined);
+}
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<AppMode>('zen');
@@ -112,91 +178,373 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const [puzzle, setPuzzle] = useState<Grid>(defaultGrid);
   const [solution, setSolution] = useState<Grid>(defaultGrid);
-  const [initial, setInitial] = useState<boolean[][]>(
-    Array.from({ length: 9 }, () => Array(9).fill(false))
-  );
+  const [initial, setInitial] = useState<boolean[][]>(createInitialGrid);
   const [playerGrid, setPlayerGrid] = useState<Grid>(defaultGrid);
-
   const [userCandidates, setUserCandidates] = useState<number[][][]>(
-    Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => []))
+    createEmptyCandidates
   );
   const [autoCandidates, setAutoCandidates] = useState<Set<number>[][]>(
-    Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set<number>()))
+    Array.from({ length: 9 }, () =>
+      Array.from({ length: 9 }, () => new Set<number>())
+    )
   );
 
-  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(null);
+  const [selectedCell, setSelectedCell] = useState<{ row: number; col: number } | null>(
+    null
+  );
   const [selectedDigit, setSelectedDigit] = useState<number | null>(null);
   const [inputMode, setInputModeState] = useState<InputMode>('digit');
   const [cellColors, setCellColorsState] = useState<Record<string, string>>({});
   const [threads, setThreads] = useState<ThreadSnapshot[]>([]);
+  const [hintedCells, setHintedCells] = useState<HintedCells>(createEmptyHintedCells);
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [isSolvedFlag, setIsSolvedFlag] = useState(false);
   const [isGameStarted, setIsGameStarted] = useState(false);
+  const [hasSavedGame, setHasSavedGame] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wasTimerActiveBeforeBackground = useRef(false);
+  const storageOperationRef = useRef(0);
+  const storageQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const elapsedSecondsRef = useRef(0);
+  const latestSaveStateRef = useRef<SaveableGameState>({
+    mode,
+    difficulty,
+    settings,
+    puzzle,
+    solution,
+    initial,
+    playerGrid,
+    userCandidates,
+    cellColors,
+    threads,
+    selectedCell,
+    selectedDigit,
+    elapsedSeconds,
+    hintedCells,
+    isGameStarted,
+    isHydrated,
+    isSolvedFlag,
+  });
 
-  // Timer management
+  useEffect(() => {
+    elapsedSecondsRef.current = elapsedSeconds;
+    latestSaveStateRef.current = {
+      mode,
+      difficulty,
+      settings,
+      puzzle,
+      solution,
+      initial,
+      playerGrid,
+      userCandidates,
+      cellColors,
+      threads,
+      selectedCell,
+      selectedDigit,
+      elapsedSeconds,
+      hintedCells,
+      isGameStarted,
+      isHydrated,
+      isSolvedFlag,
+    };
+  }, [
+    mode,
+    difficulty,
+    settings,
+    puzzle,
+    solution,
+    initial,
+    playerGrid,
+    userCandidates,
+    cellColors,
+    threads,
+    selectedCell,
+    selectedDigit,
+    elapsedSeconds,
+    hintedCells,
+    isGameStarted,
+    isHydrated,
+    isSolvedFlag,
+  ]);
+
+  const enqueueGameStorageOperation = useCallback((task: () => Promise<void>) => {
+    const run = storageQueueRef.current
+      .catch(() => undefined)
+      .then(task)
+      .catch(() => undefined);
+    storageQueueRef.current = run;
+    return run;
+  }, []);
+
+  const persistCurrentGame = useCallback(async () => {
+    const {
+      isHydrated: hydrated,
+      isSolvedFlag: solved,
+      ...snapshot
+    } = latestSaveStateRef.current;
+
+    if (!hydrated) return;
+
+    const operation = ++storageOperationRef.current;
+    const elapsedSecondsSnapshot = elapsedSecondsRef.current;
+
+    await enqueueGameStorageOperation(async () => {
+      if (!snapshot.isGameStarted || solved) {
+        await AsyncStorage.removeItem(GAME_STORAGE_KEY);
+        if (operation === storageOperationRef.current) setHasSavedGame(false);
+        return;
+      }
+
+      const saved: SavedGameState = {
+        ...snapshot,
+        elapsedSeconds: elapsedSecondsSnapshot,
+        savedAt: new Date().toISOString(),
+      };
+
+      await AsyncStorage.setItem(GAME_STORAGE_KEY, JSON.stringify(saved));
+
+      if (operation === storageOperationRef.current) {
+        setHasSavedGame(true);
+      }
+    });
+  }, [enqueueGameStorageOperation]);
+
+  const stopTimer = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
   const startTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    stopTimer();
     timerRef.current = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
+      setElapsedSeconds((s) => {
+        const next = s + 1;
+        elapsedSecondsRef.current = next;
+        latestSaveStateRef.current.elapsedSeconds = next;
+        return next;
+      });
     }, 1000);
     setTimerActive(true);
-  }, []);
+  }, [stopTimer]);
 
   const pauseTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
+    stopTimer();
     setTimerActive(false);
-  }, []);
+  }, [stopTimer]);
 
   const resumeTimer = useCallback(() => {
+    if (!isGameStarted || isSolvedFlag) return;
     startTimer();
-  }, [startTimer]);
+  }, [isGameStarted, isSolvedFlag, startTimer]);
 
-  // Pause timer when app goes to background
+  const pauseGame = useCallback(() => {
+    pauseTimer();
+    void persistCurrentGame();
+  }, [pauseTimer, persistCurrentGame]);
+
+  const resumeGame = useCallback(() => {
+    resumeTimer();
+  }, [resumeTimer]);
+
+  const restoreSavedState = useCallback(
+    (saved: SavedGameState) => {
+      setModeState(saved.mode ?? 'zen');
+      setDifficultyState(saved.difficulty ?? 'Moyen');
+      setSettings({ ...defaultSettings, ...saved.settings });
+      setPuzzle(saved.puzzle ?? createEmptyGrid());
+      setSolution(saved.solution ?? createEmptyGrid());
+      setInitial(saved.initial ?? createInitialGrid());
+      setPlayerGrid(saved.playerGrid ?? createEmptyGrid());
+      setUserCandidates(saved.userCandidates ?? createEmptyCandidates());
+      setAutoCandidates(computeCandidates(saved.playerGrid ?? createEmptyGrid()));
+      setSelectedCell(saved.selectedCell ?? null);
+      setSelectedDigit(saved.selectedDigit ?? null);
+      setInputModeState('digit');
+      setCellColorsState(saved.cellColors ?? {});
+      setThreads((saved.threads ?? []).map(normalizeThread));
+      setHintedCells(cloneHintedCells(saved.hintedCells));
+      const savedElapsedSeconds = saved.elapsedSeconds ?? 0;
+      elapsedSecondsRef.current = savedElapsedSeconds;
+      setElapsedSeconds(savedElapsedSeconds);
+      setIsSolvedFlag(false);
+      setIsGameStarted(Boolean(saved.isGameStarted));
+      setHasSavedGame(Boolean(saved.isGameStarted));
+      pauseTimer();
+    },
+    [pauseTimer]
+  );
+
+  const loadSavedGame = useCallback(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(GAME_STORAGE_KEY);
+      if (!raw) {
+        setHasSavedGame(false);
+        return false;
+      }
+      restoreSavedState(JSON.parse(raw) as SavedGameState);
+      return true;
+    } catch {
+      setHasSavedGame(false);
+      return false;
+    }
+  }, [restoreSavedState]);
+
+  const clearSavedGame = useCallback(async () => {
+    const operation = ++storageOperationRef.current;
+    pauseTimer();
+    setHasSavedGame(false);
+    setPuzzle(createEmptyGrid());
+    setSolution(createEmptyGrid());
+    setInitial(createInitialGrid());
+    setPlayerGrid(createEmptyGrid());
+    setUserCandidates(createEmptyCandidates());
+    setAutoCandidates(computeCandidates(createEmptyGrid()));
+    setSelectedCell(null);
+    setSelectedDigit(null);
+    setInputModeState('digit');
+    setCellColorsState({});
+    setThreads([]);
+    setHintedCells({});
+    elapsedSecondsRef.current = 0;
+    setElapsedSeconds(0);
+    setIsSolvedFlag(false);
+    setIsGameStarted(false);
+    await enqueueGameStorageOperation(async () => {
+      await AsyncStorage.removeItem(GAME_STORAGE_KEY);
+      if (operation === storageOperationRef.current) setHasSavedGame(false);
+    });
+  }, [enqueueGameStorageOperation, pauseTimer]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function hydrate() {
+      try {
+        const [settingsRaw, gameRaw] = await Promise.all([
+          AsyncStorage.getItem(SETTINGS_STORAGE_KEY),
+          AsyncStorage.getItem(GAME_STORAGE_KEY),
+        ]);
+
+        if (cancelled) return;
+
+        if (gameRaw) {
+          restoreSavedState(JSON.parse(gameRaw) as SavedGameState);
+        } else if (settingsRaw) {
+          setSettings({ ...defaultSettings, ...(JSON.parse(settingsRaw) as Settings) });
+          setHasSavedGame(false);
+        }
+      } catch {
+        if (!cancelled) setHasSavedGame(false);
+      } finally {
+        if (!cancelled) setIsHydrated(true);
+      }
+    }
+
+    void hydrate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [restoreSavedState]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    void AsyncStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings)).catch(
+      () => undefined
+    );
+  }, [isHydrated, settings]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    void persistCurrentGame();
+  }, [
+    isHydrated,
+    mode,
+    difficulty,
+    settings,
+    puzzle,
+    solution,
+    initial,
+    playerGrid,
+    userCandidates,
+    cellColors,
+    threads,
+    selectedCell,
+    selectedDigit,
+    hintedCells,
+    isGameStarted,
+    isSolvedFlag,
+    persistCurrentGame,
+  ]);
+
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' || state === 'inactive') pauseTimer();
-      else if (state === 'active' && isGameStarted && !isSolvedFlag) startTimer();
+      if (state === 'background' || state === 'inactive') {
+        wasTimerActiveBeforeBackground.current = timerActive;
+        pauseTimer();
+        void persistCurrentGame();
+      } else if (
+        state === 'active' &&
+        wasTimerActiveBeforeBackground.current &&
+        isGameStarted &&
+        !isSolvedFlag
+      ) {
+        wasTimerActiveBeforeBackground.current = false;
+        startTimer();
+      }
     });
-    return () => sub.remove();
-  }, [isGameStarted, isSolvedFlag, pauseTimer, startTimer]);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
+    return () => sub.remove();
+  }, [isGameStarted, isSolvedFlag, pauseTimer, persistCurrentGame, startTimer, timerActive]);
+
+  useEffect(
+    () => () => {
+      void persistCurrentGame();
+      stopTimer();
+    },
+    [persistCurrentGame, stopTimer]
+  );
 
   const startNewGame = useCallback(() => {
+    storageOperationRef.current += 1;
     const { puzzle: p, solution: s, initial: ini } = generatePuzzle(difficulty);
     const playerG = deepCopyGrid(p);
     setPuzzle(p);
     setSolution(s);
     setInitial(ini);
     setPlayerGrid(playerG);
-    setUserCandidates(Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => [])));
+    setUserCandidates(createEmptyCandidates());
     setAutoCandidates(computeCandidates(playerG));
     setSelectedCell(null);
     setSelectedDigit(null);
+    setInputModeState('digit');
     setCellColorsState({});
     setThreads([]);
+    setHintedCells({});
+    elapsedSecondsRef.current = 0;
     setElapsedSeconds(0);
     setIsSolvedFlag(false);
     setIsGameStarted(true);
-    if (timerRef.current) clearInterval(timerRef.current);
+    setHasSavedGame(true);
     startTimer();
+    triggerHaptic('impact');
   }, [difficulty, startTimer]);
 
   const setMode = useCallback((m: AppMode) => {
     setModeState(m);
     setInputModeState('digit');
+    triggerHaptic('selection');
   }, []);
 
   const setDifficulty = useCallback((d: Difficulty) => {
     setDifficultyState(d);
+    triggerHaptic('selection');
   }, []);
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
@@ -208,6 +556,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setSelectedCell({ row, col });
       const val = playerGrid[row][col];
       setSelectedDigit(val ?? null);
+      triggerHaptic('selection');
     },
     [playerGrid]
   );
@@ -223,15 +572,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setPlayerGrid(newGrid);
       setSelectedDigit(digit);
 
-      // Clear user candidates for this cell
       const newCand = userCandidates.map((r) => r.map((c) => [...c]));
       newCand[row][col] = [];
       setUserCandidates(newCand);
+      setHintedCells((prev) => {
+        const key = getCellKey(row, col);
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       setAutoCandidates(computeCandidates(newGrid));
+      triggerHaptic('impact');
 
       if (isSolved(newGrid)) {
         setIsSolvedFlag(true);
         pauseTimer();
+        triggerHaptic('success');
       }
     },
     [selectedCell, initial, playerGrid, userCandidates, pauseTimer]
@@ -241,6 +598,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (!selectedCell) return;
     const { row, col } = selectedCell;
     if (initial[row][col]) return;
+    const key = getCellKey(row, col);
+    const wasHinted = Boolean(hintedCells[key]);
 
     const newGrid = deepCopyGrid(playerGrid);
     newGrid[row][col] = null;
@@ -248,10 +607,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setSelectedDigit(null);
 
     const newCand = userCandidates.map((r) => r.map((c) => [...c]));
-    newCand[row][col] = [];
+    if (!wasHinted) newCand[row][col] = [];
     setUserCandidates(newCand);
+    if (wasHinted) {
+      setHintedCells((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
     setAutoCandidates(computeCandidates(newGrid));
-  }, [selectedCell, initial, playerGrid, userCandidates]);
+    triggerHaptic('selection');
+  }, [selectedCell, initial, playerGrid, userCandidates, hintedCells]);
 
   const toggleCandidate = useCallback(
     (digit: number) => {
@@ -265,34 +632,39 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (idx >= 0) cell.splice(idx, 1);
       else cell.push(digit);
       setUserCandidates(newCand);
+      triggerHaptic('selection');
     },
     [selectedCell, initial, playerGrid, userCandidates]
   );
 
   const setInputMode = useCallback((m: InputMode) => {
     setInputModeState(m);
+    triggerHaptic('selection');
   }, []);
 
   const setCellColor = useCallback((row: number, col: number, color: string) => {
     const key = `${row}-${col}`;
     setCellColorsState((prev) => {
-      if (prev[key] === color) {
+      if (!color || prev[key] === color) {
         const next = { ...prev };
         delete next[key];
         return next;
       }
       return { ...prev, [key]: color };
     });
+    triggerHaptic('selection');
   }, []);
 
   const saveThread = useCallback(() => {
     const snap: ThreadSnapshot = {
       grid: deepCopyGrid(playerGrid),
       candidates: userCandidates.map((r) => r.map((c) => [...c])),
+      hintedCells: cloneHintedCells(hintedCells),
       label: `Thread ${threads.length + 1}`,
     };
     setThreads((prev) => [...prev, snap]);
-  }, [playerGrid, userCandidates, threads.length]);
+    triggerHaptic('success');
+  }, [playerGrid, userCandidates, hintedCells, threads.length]);
 
   const restoreThread = useCallback(
     (index: number) => {
@@ -301,18 +673,34 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setPlayerGrid(deepCopyGrid(snap.grid));
       setUserCandidates(snap.candidates.map((r) => r.map((c) => [...c])));
       setAutoCandidates(computeCandidates(snap.grid));
+      setHintedCells(cloneHintedCells(snap.hintedCells));
       setIsSolvedFlag(false);
+      triggerHaptic('impact');
     },
     [threads]
   );
 
   const deleteThread = useCallback((index: number) => {
     setThreads((prev) => prev.filter((_, i) => i !== index));
+    triggerHaptic('selection');
   }, []);
+
+  const handlePotentialSolve = useCallback(
+    (grid: Grid) => {
+      if (isSolved(grid)) {
+        setIsSolvedFlag(true);
+        pauseTimer();
+        triggerHaptic('success');
+        return;
+      }
+
+      triggerHaptic('impact');
+    },
+    [pauseTimer]
+  );
 
   const getHint = useCallback(() => {
     if (!selectedCell) {
-      // Find first empty conflicting or empty cell
       for (let r = 0; r < 9; r++) {
         for (let c = 0; c < 9; c++) {
           if (!initial[r][c] && (playerGrid[r][c] === null || hasConflict(playerGrid, r, c))) {
@@ -320,24 +708,25 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             const newGrid = deepCopyGrid(playerGrid);
             newGrid[r][c] = solution[r][c];
             setPlayerGrid(newGrid);
+            setHintedCells((prev) => ({ ...prev, [getCellKey(r, c)]: true }));
             setAutoCandidates(computeCandidates(newGrid));
+            handlePotentialSolve(newGrid);
             return;
           }
         }
       }
       return;
     }
+
     const { row, col } = selectedCell;
     if (initial[row][col]) return;
     const newGrid = deepCopyGrid(playerGrid);
     newGrid[row][col] = solution[row][col];
     setPlayerGrid(newGrid);
+    setHintedCells((prev) => ({ ...prev, [getCellKey(row, col)]: true }));
     setAutoCandidates(computeCandidates(newGrid));
-    if (isSolved(newGrid)) {
-      setIsSolvedFlag(true);
-      pauseTimer();
-    }
-  }, [selectedCell, initial, playerGrid, solution, pauseTimer]);
+    handlePotentialSolve(newGrid);
+  }, [selectedCell, initial, playerGrid, solution, handlePotentialSolve]);
 
   const value: GameContextValue = {
     mode,
@@ -358,6 +747,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     timerActive,
     isSolvedFlag,
     isGameStarted,
+    hasSavedGame,
+    isHydrated,
     setMode,
     setDifficulty,
     updateSettings,
@@ -374,6 +765,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     getHint,
     pauseTimer,
     resumeTimer,
+    pauseGame,
+    resumeGame,
+    loadSavedGame,
+    clearSavedGame,
   };
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

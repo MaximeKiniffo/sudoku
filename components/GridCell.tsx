@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
@@ -56,17 +57,19 @@ export default function GridCell({ row, col }: Props) {
       ]).start();
     }
     prevValue.current = value;
-  }, [value]);
+  }, [scale, value]);
 
   let bgColor: string = 'transparent';
-  if (customColor) bgColor = customColor;
-  else if (conflict) bgColor = Colors.error;
+  if (conflict) bgColor = Colors.dangerSurface;
+  else if (customColor) bgColor = customColor;
   else if (isSelected) bgColor = Colors.selected;
   else if (isSameDigit) bgColor = Colors.sameDigit;
   else if (isSameRow || isSameCol || isSameBox) bgColor = Colors.highlighted;
 
   const borderRight = (col + 1) % 3 === 0 && col < 8;
   const borderBottom = (row + 1) % 3 === 0 && row < 8;
+  const strongBorderColor = dark ? Colors.white : Colors.borderStrong;
+  const playerColor = dark ? Colors.playerDigitDark : Colors.playerDigit;
 
   const candidates = userCandidates[row][col];
 
@@ -75,13 +78,24 @@ export default function GridCell({ row, col }: Props) {
   };
 
   return (
-    <Pressable onPress={handlePress}>
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={
+        value === null
+          ? `Case vide ligne ${row + 1}, colonne ${col + 1}`
+          : `Case ligne ${row + 1}, colonne ${col + 1}, chiffre ${value}`
+      }
+      accessibilityState={{ selected: isSelected }}
+    >
       <Animated.View
         style={[
           styles.cell,
           { backgroundColor: bgColor, transform: [{ scale }] },
-          borderRight && styles.borderRight,
-          borderBottom && styles.borderBottom,
+          conflict && styles.conflictCell,
+          conflict && { borderColor: Colors.danger },
+          borderRight && { borderRightWidth: 2, borderRightColor: strongBorderColor },
+          borderBottom && { borderBottomWidth: 2, borderBottomColor: strongBorderColor },
           dark && styles.cellDark,
         ]}
       >
@@ -89,7 +103,7 @@ export default function GridCell({ row, col }: Props) {
           <Text
             style={[
               styles.digit,
-              { color: isInitial ? (dark ? Colors.white : Colors.given) : Colors.playerDigit },
+              { color: isInitial ? (dark ? Colors.givenDark : Colors.given) : playerColor },
               isInitial && styles.givenDigit,
               conflict && styles.conflictText,
             ]}
@@ -97,14 +111,31 @@ export default function GridCell({ row, col }: Props) {
             {value}
           </Text>
         ) : mode === 'expert' && candidates.length > 0 ? (
-          <CandidateGrid candidates={candidates} fontSize={settings.candidateSize} />
+          <CandidateGrid
+            candidates={candidates}
+            fontSize={settings.candidateSize}
+            color={playerColor}
+          />
         ) : null}
+        {conflict && (
+          <View style={styles.conflictIcon}>
+            <Ionicons name="alert-circle" size={12} color={Colors.danger} />
+          </View>
+        )}
       </Animated.View>
     </Pressable>
   );
 }
 
-function CandidateGrid({ candidates, fontSize }: { candidates: number[]; fontSize: number }) {
+function CandidateGrid({
+  candidates,
+  fontSize,
+  color,
+}: {
+  candidates: number[];
+  fontSize: number;
+  color: string;
+}) {
   return (
     <View style={styles.candidateGrid}>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
@@ -112,7 +143,7 @@ function CandidateGrid({ candidates, fontSize }: { candidates: number[]; fontSiz
           key={n}
           style={[
             styles.candidateDigit,
-            { fontSize, color: candidates.includes(n) ? Colors.playerDigit : 'transparent' },
+            { fontSize, color: candidates.includes(n) ? color : 'transparent' },
           ]}
         >
           {n}
@@ -131,13 +162,8 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.sm - 2,
   },
   cellDark: {},
-  borderRight: {
-    borderRightWidth: 2,
-    borderRightColor: Colors.borderStrong,
-  },
-  borderBottom: {
-    borderBottomWidth: 2,
-    borderBottomColor: Colors.borderStrong,
+  conflictCell: {
+    borderWidth: 1.5,
   },
   digit: {
     fontSize: CELL_SIZE * 0.52,
@@ -149,6 +175,11 @@ const styles = StyleSheet.create({
   },
   conflictText: {
     color: Colors.errorText,
+  },
+  conflictIcon: {
+    position: 'absolute',
+    right: 2,
+    top: 2,
   },
   candidateGrid: {
     width: '100%',
