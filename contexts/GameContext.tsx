@@ -55,6 +55,8 @@ export interface SavedGameState {
   selectedCell: { row: number; col: number } | null;
   selectedDigit: number | null;
   elapsedSeconds: number;
+  mistakeCount: number;
+  hintCount: number;
   hintedCells: HintedCells;
   isGameStarted: boolean;
   savedAt: string;
@@ -94,6 +96,8 @@ interface GameState {
   history: MoveSnapshot[];
   canUndo: boolean;
   elapsedSeconds: number;
+  mistakeCount: number;
+  hintCount: number;
   timerActive: boolean;
   isSolvedFlag: boolean;
   isGameStarted: boolean;
@@ -237,6 +241,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [history, setHistory] = useState<MoveSnapshot[]>([]);
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [mistakeCount, setMistakeCount] = useState(0);
+  const [hintCount, setHintCount] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [isSolvedFlag, setIsSolvedFlag] = useState(false);
   const [isGameStarted, setIsGameStarted] = useState(false);
@@ -262,6 +268,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     selectedCell,
     selectedDigit,
     elapsedSeconds,
+    mistakeCount,
+    hintCount,
     hintedCells,
     isGameStarted,
     isHydrated,
@@ -284,6 +292,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       selectedCell,
       selectedDigit,
       elapsedSeconds,
+      mistakeCount,
+      hintCount,
       hintedCells,
       isGameStarted,
       isHydrated,
@@ -303,6 +313,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     selectedCell,
     selectedDigit,
     elapsedSeconds,
+    mistakeCount,
+    hintCount,
     hintedCells,
     isGameStarted,
     isHydrated,
@@ -425,6 +437,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setThreads((saved.threads ?? []).map(normalizeThread));
       setHintedCells(cloneHintedCells(saved.hintedCells));
       setHistory([]);
+      setMistakeCount(saved.mistakeCount ?? 0);
+      setHintCount(saved.hintCount ?? 0);
       const savedElapsedSeconds = saved.elapsedSeconds ?? 0;
       elapsedSecondsRef.current = savedElapsedSeconds;
       setElapsedSeconds(savedElapsedSeconds);
@@ -481,6 +495,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setThreads([]);
     setHintedCells({});
     setHistory([]);
+    setMistakeCount(0);
+    setHintCount(0);
     elapsedSecondsRef.current = 0;
     setElapsedSeconds(0);
     setIsSolvedFlag(false);
@@ -557,6 +573,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     threads,
     selectedCell,
     selectedDigit,
+    mistakeCount,
+    hintCount,
     hintedCells,
     isGameStarted,
     isSolvedFlag,
@@ -609,6 +627,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setThreads([]);
     setHintedCells({});
     setHistory([]);
+    setMistakeCount(0);
+    setHintCount(0);
     elapsedSecondsRef.current = 0;
     setElapsedSeconds(0);
     setIsSolvedFlag(false);
@@ -659,6 +679,9 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       newGrid[row][col] = digit;
       setPlayerGrid(newGrid);
       setSelectedDigit(digit);
+      if (digit !== solution[row][col]) {
+        setMistakeCount((count) => count + 1);
+      }
 
       const newCand = userCandidates.map((r) => r.map((c) => [...c]));
       newCand[row][col] = [];
@@ -679,7 +702,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         triggerHaptic('success');
       }
     },
-    [selectedCell, initial, pushUndoSnapshot, playerGrid, userCandidates, pauseTimer]
+    [selectedCell, initial, pushUndoSnapshot, playerGrid, solution, userCandidates, pauseTimer]
   );
 
   const eraseCell = useCallback(() => {
@@ -818,6 +841,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
             const newGrid = deepCopyGrid(playerGrid);
             newGrid[r][c] = solution[r][c];
             setPlayerGrid(newGrid);
+            setHintCount((count) => count + 1);
             setHintedCells((prev) => ({ ...prev, [getCellKey(r, c)]: true }));
             setAutoCandidates(computeCandidates(newGrid));
             handlePotentialSolve(newGrid);
@@ -830,10 +854,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const { row, col } = selectedCell;
     if (initial[row][col]) return;
+    if (playerGrid[row][col] === solution[row][col]) return;
     pushUndoSnapshot();
     const newGrid = deepCopyGrid(playerGrid);
     newGrid[row][col] = solution[row][col];
     setPlayerGrid(newGrid);
+    setHintCount((count) => count + 1);
     setHintedCells((prev) => ({ ...prev, [getCellKey(row, col)]: true }));
     setAutoCandidates(computeCandidates(newGrid));
     handlePotentialSolve(newGrid);
@@ -860,6 +886,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     history,
     canUndo,
     elapsedSeconds,
+    mistakeCount,
+    hintCount,
     timerActive,
     isSolvedFlag,
     isGameStarted,
