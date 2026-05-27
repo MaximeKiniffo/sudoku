@@ -14,7 +14,7 @@ export default function SudokuGrid() {
       style={[
         styles.grid,
         {
-          borderColor: dark ? Colors.white : Colors.borderStrong,
+          borderColor: dark ? Colors.borderStrongDark : Colors.borderStrong,
           backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
         },
       ]}

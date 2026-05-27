@@ -59,16 +59,18 @@ export default function GridCell({ row, col }: Props) {
     prevValue.current = value;
   }, [scale, value]);
 
-  let bgColor: string = 'transparent';
-  if (conflict) bgColor = Colors.dangerSurface;
+  let bgColor: string = dark ? Colors.cellBackgroundDark : 'transparent';
+  if (conflict) bgColor = dark ? Colors.dangerSurfaceDark : Colors.dangerSurface;
   else if (customColor) bgColor = customColor;
-  else if (isSelected) bgColor = Colors.selected;
-  else if (isSameDigit) bgColor = Colors.sameDigit;
-  else if (isSameRow || isSameCol || isSameBox) bgColor = Colors.highlighted;
+  else if (isSelected) bgColor = dark ? Colors.selectedDark : Colors.selected;
+  else if (isSameDigit) bgColor = dark ? Colors.sameDigitDark : Colors.sameDigit;
+  else if (isSameRow || isSameCol || isSameBox) {
+    bgColor = dark ? Colors.highlightedDark : Colors.highlighted;
+  }
 
   const borderRight = (col + 1) % 3 === 0 && col < 8;
   const borderBottom = (row + 1) % 3 === 0 && row < 8;
-  const strongBorderColor = dark ? Colors.white : Colors.borderStrong;
+  const strongBorderColor = dark ? Colors.borderStrongDark : Colors.borderStrong;
   const playerColor = dark ? Colors.playerDigitDark : Colors.playerDigit;
 
   const candidates = userCandidates[row][col];
@@ -91,12 +93,12 @@ export default function GridCell({ row, col }: Props) {
       <Animated.View
         style={[
           styles.cell,
+          dark && styles.cellDark,
           { backgroundColor: bgColor, transform: [{ scale }] },
           conflict && styles.conflictCell,
-          conflict && { borderColor: Colors.danger },
+          conflict && { borderColor: dark ? Colors.errorTextDark : Colors.danger },
           borderRight && { borderRightWidth: 2, borderRightColor: strongBorderColor },
           borderBottom && { borderBottomWidth: 2, borderBottomColor: strongBorderColor },
-          dark && styles.cellDark,
         ]}
       >
         {value !== null ? (
@@ -105,7 +107,7 @@ export default function GridCell({ row, col }: Props) {
               styles.digit,
               { color: isInitial ? (dark ? Colors.givenDark : Colors.given) : playerColor },
               isInitial && styles.givenDigit,
-              conflict && styles.conflictText,
+              conflict && { color: dark ? Colors.errorTextDark : Colors.errorText },
             ]}
           >
             {value}
@@ -119,7 +121,11 @@ export default function GridCell({ row, col }: Props) {
         ) : null}
         {conflict && (
           <View style={styles.conflictIcon}>
-            <Ionicons name="alert-circle" size={12} color={Colors.danger} />
+            <Ionicons
+              name="alert-circle"
+              size={12}
+              color={dark ? Colors.errorTextDark : Colors.danger}
+            />
           </View>
         )}
       </Animated.View>
@@ -159,9 +165,13 @@ const styles = StyleSheet.create({
     height: CELL_SIZE,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.cellBorder,
     borderRadius: BORDER_RADIUS.sm - 2,
   },
-  cellDark: {},
+  cellDark: {
+    borderColor: Colors.cellBorderDark,
+  },
   conflictCell: {
     borderWidth: 1.5,
   },
@@ -172,9 +182,6 @@ const styles = StyleSheet.create({
   },
   givenDigit: {
     fontWeight: '700',
-  },
-  conflictText: {
-    color: Colors.errorText,
   },
   conflictIcon: {
     position: 'absolute',
