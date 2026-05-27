@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated, Pressable } from 'react-native';
 import { useGame } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
@@ -14,6 +14,7 @@ interface Props {
 export default function GridCell({ row, col }: Props) {
   const {
     playerGrid,
+    solution,
     initial,
     selectedCell,
     selectedDigit,
@@ -49,18 +50,37 @@ export default function GridCell({ row, col }: Props) {
   // Animation on digit place
   const scale = useRef(new Animated.Value(1)).current;
   const prevValue = useRef(value);
+  const mistakeFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mistakeFlash, setMistakeFlash] = useState(false);
+
   useEffect(() => {
     if (value !== null && value !== prevValue.current) {
       Animated.sequence([
         Animated.timing(scale, { toValue: 1.15, duration: 80, useNativeDriver: true }),
         Animated.timing(scale, { toValue: 1, duration: 100, useNativeDriver: true }),
       ]).start();
+
+      if (!isInitial && value !== solution[row][col]) {
+        setMistakeFlash(true);
+        if (mistakeFlashTimer.current) clearTimeout(mistakeFlashTimer.current);
+        mistakeFlashTimer.current = setTimeout(() => {
+          setMistakeFlash(false);
+          mistakeFlashTimer.current = null;
+        }, 320);
+      }
     }
     prevValue.current = value;
-  }, [scale, value]);
+  }, [col, isInitial, row, scale, solution, value]);
+
+  useEffect(
+    () => () => {
+      if (mistakeFlashTimer.current) clearTimeout(mistakeFlashTimer.current);
+    },
+    []
+  );
 
   let bgColor: string = dark ? Colors.cellBackgroundDark : 'transparent';
-  if (conflict) bgColor = dark ? Colors.dangerSurfaceDark : Colors.dangerSurface;
+  if (mistakeFlash || conflict) bgColor = dark ? Colors.dangerSurfaceDark : Colors.dangerSurface;
   else if (customColor) bgColor = customColor;
   else if (isSelected) bgColor = dark ? Colors.selectedDark : Colors.selected;
   else if (isSameDigit) bgColor = dark ? Colors.sameDigitDark : Colors.sameDigit;
@@ -95,8 +115,8 @@ export default function GridCell({ row, col }: Props) {
           styles.cell,
           dark && styles.cellDark,
           { backgroundColor: bgColor, transform: [{ scale }] },
-          conflict && styles.conflictCell,
-          conflict && { borderColor: dark ? Colors.errorTextDark : Colors.danger },
+          (mistakeFlash || conflict) && styles.conflictCell,
+          (mistakeFlash || conflict) && { borderColor: dark ? Colors.errorTextDark : Colors.danger },
           borderRight && { borderRightWidth: 2, borderRightColor: strongBorderColor },
           borderBottom && { borderBottomWidth: 2, borderBottomColor: strongBorderColor },
         ]}

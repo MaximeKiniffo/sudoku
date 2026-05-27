@@ -5,15 +5,17 @@ import { useGame, InputMode } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
 import { SPACING, BORDER_RADIUS, MIN_TOUCH_TARGET } from '@/utils/constants';
 
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
 const DIGIT_ROWS = [
   [1, 2, 3],
   [4, 5, 6],
   [7, 8, 9],
 ];
 
-const INPUT_OPTIONS: { value: InputMode; label: string }[] = [
-  { value: 'digit', label: 'Chiffre' },
-  { value: 'candidate', label: 'Note' },
+const INPUT_OPTIONS: { value: InputMode; label: string; icon: IconName }[] = [
+  { value: 'digit', label: 'Chiffre', icon: 'keypad-outline' },
+  { value: 'candidate', label: 'Note', icon: 'create-outline' },
 ];
 
 export default function NumberPad() {
@@ -36,6 +38,9 @@ export default function NumberPad() {
   const bg = dark ? Colors.surfaceDark : Colors.surface;
   const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
   const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
+  const isCandidateMode = mode === 'expert' && inputMode === 'candidate';
+  const candidateSurface = dark ? Colors.highlightedDark : Colors.highlighted;
+  const keySurface = dark ? Colors.cardBackgroundDark : Colors.cardBackground;
 
   const digitCounts = Array.from({ length: 10 }, () => 0);
   playerGrid.forEach((row) => {
@@ -57,12 +62,20 @@ export default function NumberPad() {
   };
 
   return (
-    <View style={[styles.pad, { backgroundColor: bg }]}>
+    <View
+      style={[
+        styles.pad,
+        {
+          backgroundColor: isCandidateMode ? candidateSurface : bg,
+          borderColor: isCandidateMode ? Colors.accent : 'transparent',
+        },
+      ]}
+    >
       {mode === 'expert' && (
         <View
           style={[
             styles.inputSegment,
-            { backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground },
+            { backgroundColor: keySurface },
           ]}
         >
           {INPUT_OPTIONS.map((option) => {
@@ -82,6 +95,11 @@ export default function NumberPad() {
                   },
                 ]}
               >
+                <Ionicons
+                  name={option.icon}
+                  size={16}
+                  color={active ? Colors.white : subText}
+                />
                 <Text
                   style={[
                     styles.inputOptionText,
@@ -118,7 +136,7 @@ export default function NumberPad() {
                   accessibilityState={{ disabled, selected: active }}
                   accessibilityLabel={
                     complete
-                      ? `Chiffre ${digit} complete`
+                      ? `Chiffre ${digit} complété`
                       : inputMode === 'candidate'
                         ? `Ajouter ou retirer la note ${digit}`
                         : `Entrer le chiffre ${digit}`
@@ -126,24 +144,38 @@ export default function NumberPad() {
                   style={({ pressed }) => [
                     styles.key,
                     disabled && styles.disabledKey,
+                    isCandidateMode && styles.noteKey,
                     {
                       backgroundColor: active
                         ? Colors.accent
-                        : dark
-                          ? Colors.cardBackgroundDark
-                          : Colors.cardBackground,
-                      opacity: disabled ? 0.32 : complete && !active ? 0.56 : pressed ? 0.75 : 1,
+                        : keySurface,
+                      borderColor: isCandidateMode
+                        ? active
+                          ? Colors.accent
+                          : dark
+                            ? Colors.borderStrongDark
+                            : Colors.borderStrong
+                        : 'transparent',
+                      opacity: disabled
+                        ? 0.32
+                        : complete && inputMode === 'digit' && !active
+                          ? 0.56
+                          : pressed
+                            ? 0.75
+                            : 1,
                     },
                   ]}
                 >
                   <Text
                     style={[
                       styles.keyText,
+                      isCandidateMode && styles.noteKeyText,
                       { color: active ? Colors.white : text },
                     ]}
                   >
                     {digit}
                   </Text>
+                  {noteActive && <View style={styles.noteActiveDot} />}
                   {complete && (
                     <Ionicons
                       name="checkmark-circle"
@@ -171,7 +203,7 @@ export default function NumberPad() {
             styles.actionKey,
             !canUndo && styles.disabledKey,
             {
-              backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+              backgroundColor: keySurface,
               opacity: !canUndo ? 0.32 : pressed ? 0.75 : 1,
             },
           ]}
@@ -188,7 +220,7 @@ export default function NumberPad() {
             styles.key,
             styles.actionKey,
             {
-              backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+              backgroundColor: keySurface,
               opacity: pressed ? 0.75 : 1,
             },
           ]}
@@ -204,6 +236,7 @@ export default function NumberPad() {
 const styles = StyleSheet.create({
   pad: {
     borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1.5,
     padding: SPACING.sm,
     gap: SPACING.sm,
     elevation: 2,
@@ -221,6 +254,8 @@ const styles = StyleSheet.create({
   inputOption: {
     flex: 1,
     minHeight: MIN_TOUCH_TARGET,
+    flexDirection: 'row',
+    gap: SPACING.xs,
     borderRadius: BORDER_RADIUS.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -243,6 +278,8 @@ const styles = StyleSheet.create({
   key: {
     flex: 1,
     minHeight: 54,
+    borderWidth: 1,
+    borderColor: 'transparent',
     borderRadius: BORDER_RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -255,6 +292,21 @@ const styles = StyleSheet.create({
   keyText: {
     fontSize: 24,
     fontWeight: '800',
+  },
+  noteKey: {
+    minHeight: 50,
+  },
+  noteKeyText: {
+    fontSize: 19,
+  },
+  noteActiveDot: {
+    position: 'absolute',
+    right: SPACING.sm,
+    bottom: SPACING.sm,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.white,
   },
   actionKey: {
     flexDirection: 'row',
