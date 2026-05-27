@@ -25,7 +25,8 @@ export function generatePuzzle(difficulty: Difficulty): {
   const puzzleNorm = flat.map((v) => (v === null ? null : v + 1));
   const solutionNorm = solutionFlat.map((v) => v + 1);
 
-  // Remove clues to match difficulty
+  // Match the visible clue count for each difficulty. The library generates
+  // very sparse puzzles, so easier levels need clues added back from the solution.
   const targetClues = DIFFICULTY_CLUES[difficulty];
   const filled = puzzleNorm.filter((v) => v !== null).length;
   if (filled > targetClues) {
@@ -36,6 +37,16 @@ export function generatePuzzle(difficulty: Difficulty): {
     const toRemove = filled - targetClues;
     for (let i = 0; i < toRemove; i++) {
       puzzleNorm[givenIdxs[i]] = null;
+    }
+  } else if (filled < targetClues) {
+    const emptyIdxs = puzzleNorm
+      .map((v, i) => (v === null ? i : -1))
+      .filter((i) => i !== -1);
+    shuffleArray(emptyIdxs);
+    const toAdd = Math.min(targetClues - filled, emptyIdxs.length);
+    for (let i = 0; i < toAdd; i++) {
+      const idx = emptyIdxs[i];
+      puzzleNorm[idx] = solutionNorm[idx];
     }
   }
 

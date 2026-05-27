@@ -20,7 +20,6 @@ import SudokuGrid from '@/components/SudokuGrid';
 import NumberPad from '@/components/NumberPad';
 import Timer from '@/components/Timer';
 import ExpertToolbar from '@/components/ExpertToolbar';
-import ModeToggle from '@/components/ModeToggle';
 
 export default function GameScreen() {
   const router = useRouter();
@@ -36,6 +35,7 @@ export default function GameScreen() {
     pauseGame,
     resumeGame,
     timerActive,
+    getHint,
   } = useGame();
 
   const dark = settings.theme === 'dark';
@@ -107,7 +107,20 @@ export default function GameScreen() {
         </View>
 
         <View style={styles.headerRight}>
-          <ModeToggle compact />
+          <View
+            style={[
+              styles.modeBadge,
+              { backgroundColor: dark ? Colors.surfaceDark : Colors.surface },
+            ]}
+            accessibilityRole="text"
+          >
+            <Ionicons
+              name={mode === 'zen' ? 'leaf-outline' : 'construct-outline'}
+              size={14}
+              color={dark ? Colors.textPrimaryDark : Colors.textPrimary}
+            />
+            <Text style={[styles.modeBadgeText, { color: text }]}>Mode {modeLabel}</Text>
+          </View>
           <TouchableOpacity
             onPress={() => router.push('/settings')}
             hitSlop={12}
@@ -151,6 +164,24 @@ export default function GameScreen() {
         {mode === 'expert' && (
           <View style={styles.expertToolbarWrapper}>
             <ExpertToolbar />
+          </View>
+        )}
+
+        {mode === 'zen' && (
+          <View style={styles.zenHintWrapper}>
+            <TouchableOpacity
+              onPress={getHint}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Indice"
+              style={[
+                styles.zenHintButton,
+                { backgroundColor: dark ? Colors.surfaceDark : Colors.surface },
+              ]}
+            >
+              <Ionicons name="bulb-outline" size={18} color={Colors.accent} />
+              <Text style={[styles.zenHintText, { color: text }]}>Indice</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -257,6 +288,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING.sm,
   },
+  modeBadge: {
+    minHeight: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    borderRadius: BORDER_RADIUS.lg,
+    paddingHorizontal: SPACING.sm,
+  },
+  modeBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
   iconBtn: {
     minWidth: MIN_TOUCH_TARGET,
     minHeight: MIN_TOUCH_TARGET,
@@ -312,6 +355,22 @@ const styles = StyleSheet.create({
   expertToolbarWrapper: {
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
+  },
+  zenHintWrapper: {
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  zenHintButton: {
+    minHeight: MIN_TOUCH_TARGET,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
+  },
+  zenHintText: {
+    fontSize: 14,
+    fontWeight: '800',
   },
   numberPadWrapper: {
     paddingHorizontal: SPACING.md,

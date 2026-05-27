@@ -77,6 +77,7 @@ type SaveableGameState = Omit<SavedGameState, 'savedAt'> & {
 
 interface GameState {
   mode: AppMode;
+  newGameMode: AppMode;
   difficulty: Difficulty;
   settings: Settings;
   puzzle: Grid;
@@ -102,6 +103,7 @@ interface GameState {
 
 interface GameContextValue extends GameState {
   setMode: (mode: AppMode) => void;
+  setNewGameMode: (mode: AppMode) => void;
   setDifficulty: (d: Difficulty) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   startNewGame: () => void;
@@ -184,6 +186,7 @@ function triggerHaptic(type: 'selection' | 'impact' | 'success' = 'selection') {
 
 export function GameProvider({ children }: { children: React.ReactNode }) {
   const [mode, setModeState] = useState<AppMode>('zen');
+  const [newGameMode, setNewGameModeState] = useState<AppMode>('zen');
   const [difficulty, setDifficultyState] = useState<Difficulty>('Moyen');
   const [settings, setSettings] = useState<Settings>(defaultSettings);
 
@@ -383,6 +386,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const restoreSavedState = useCallback(
     (saved: SavedGameState) => {
       setModeState(saved.mode ?? 'zen');
+      setNewGameModeState(saved.mode ?? 'zen');
       setDifficultyState(saved.difficulty ?? 'Moyen');
       setSettings({ ...defaultSettings, ...saved.settings });
       setPuzzle(saved.puzzle ?? createEmptyGrid());
@@ -545,6 +549,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     storageOperationRef.current += 1;
     const { puzzle: p, solution: s, initial: ini } = generatePuzzle(difficulty);
     const playerG = deepCopyGrid(p);
+    setModeState(newGameMode);
     setPuzzle(p);
     setSolution(s);
     setInitial(ini);
@@ -565,11 +570,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setHasSavedGame(true);
     startTimer();
     triggerHaptic('impact');
-  }, [difficulty, startTimer]);
+  }, [difficulty, newGameMode, startTimer]);
 
   const setMode = useCallback((m: AppMode) => {
     setModeState(m);
     setInputModeState('digit');
+    triggerHaptic('selection');
+  }, []);
+
+  const setNewGameMode = useCallback((m: AppMode) => {
+    setNewGameModeState(m);
     triggerHaptic('selection');
   }, []);
 
@@ -787,6 +797,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const value: GameContextValue = {
     mode,
+    newGameMode,
     difficulty,
     settings,
     puzzle,
@@ -809,6 +820,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     hasSavedGame,
     isHydrated,
     setMode,
+    setNewGameMode,
     setDifficulty,
     updateSettings,
     startNewGame,

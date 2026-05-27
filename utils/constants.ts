@@ -11,10 +11,10 @@ export const DIFFICULTIES = ['Facile', 'Moyen', 'Difficile', 'Expert'] as const;
 export type Difficulty = (typeof DIFFICULTIES)[number];
 
 export const DIFFICULTY_CLUES: Record<Difficulty, number> = {
-  Facile: 46,
-  Moyen: 36,
-  Difficile: 28,
-  Expert: 22,
+  Facile: 54,
+  Moyen: 42,
+  Difficile: 32,
+  Expert: 24,
 };
 
 export const BORDER_RADIUS = {

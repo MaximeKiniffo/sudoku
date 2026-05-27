@@ -19,12 +19,22 @@ import ModeToggle from '@/components/ModeToggle';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { settings, updateSettings, hasSavedGame, clearSavedGame } = useGame();
+  const {
+    settings,
+    updateSettings,
+    hasSavedGame,
+    mode,
+    newGameMode,
+    isGameStarted,
+    setNewGameMode,
+    clearSavedGame,
+  } = useGame();
   const dark = settings.theme === 'dark';
   const bg = dark ? Colors.cardBackgroundDark : Colors.cardBackground;
   const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
   const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
   const rowBorder = dark ? Colors.surfaceDark : Colors.border;
+  const hasActiveGame = isGameStarted || hasSavedGame;
 
   const confirmClearSavedGame = () => {
     Alert.alert(
@@ -67,11 +77,17 @@ export default function SettingsScreen() {
             <View style={styles.rowLabelBlock}>
               <Text style={[styles.rowLabel, { color: text }]}>Mode de jeu</Text>
               <Text style={[styles.rowSub, { color: subText }]}>
-                Zen pour jouer simplement, Expert pour les notes et outils.
+                {hasActiveGame
+                  ? `La partie à continuer reste en mode ${mode === 'zen' ? 'Zen' : 'Expert'}.`
+                  : 'Zen pour les indices et assistances, Expert pour les notes et outils.'}
               </Text>
             </View>
             <View style={styles.modeToggleWrap}>
-              <ModeToggle />
+              <ModeToggle
+                value={newGameMode}
+                onChange={setNewGameMode}
+                helperText={hasActiveGame ? 'Ce choix s’applique à la prochaine nouvelle partie' : undefined}
+              />
             </View>
           </View>
 
