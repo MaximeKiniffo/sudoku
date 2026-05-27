@@ -21,6 +21,8 @@ export default function NumberPad() {
     placeDigit,
     toggleCandidate,
     eraseCell,
+    undoLastMove,
+    canUndo,
     inputMode,
     setInputMode,
     mode,
@@ -99,6 +101,7 @@ export default function NumberPad() {
           <View key={row.join('-')} style={styles.digitRow}>
             {row.map((digit) => {
               const complete = digitCounts[digit] >= 9;
+              const disabled = complete && inputMode === 'digit';
               const noteActive =
                 mode === 'expert' &&
                 inputMode === 'candidate' &&
@@ -109,26 +112,29 @@ export default function NumberPad() {
               return (
                 <Pressable
                   key={digit}
+                  disabled={disabled}
+                  onPress={() => handlePress(digit)}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled, selected: active }}
+                  accessibilityLabel={
+                    complete
+                      ? `Chiffre ${digit} complete`
+                      : inputMode === 'candidate'
+                        ? `Ajouter ou retirer la note ${digit}`
+                        : `Entrer le chiffre ${digit}`
+                  }
                   style={({ pressed }) => [
                     styles.key,
+                    disabled && styles.disabledKey,
                     {
                       backgroundColor: active
                         ? Colors.accent
                         : dark
                           ? Colors.cardBackgroundDark
                           : Colors.cardBackground,
-                      opacity: complete && !active ? 0.48 : pressed ? 0.75 : 1,
+                      opacity: disabled ? 0.32 : complete && !active ? 0.56 : pressed ? 0.75 : 1,
                     },
                   ]}
-                  onPress={() => handlePress(digit)}
-                  accessibilityRole="button"
-                  accessibilityLabel={
-                    complete
-                      ? `Chiffre ${digit} complété`
-                      : inputMode === 'candidate'
-                        ? `Ajouter ou retirer la note ${digit}`
-                        : `Entrer le chiffre ${digit}`
-                  }
                 >
                   <Text
                     style={[
@@ -153,21 +159,44 @@ export default function NumberPad() {
         ))}
       </View>
 
-      <Pressable
-        onPress={eraseCell}
-        accessibilityRole="button"
-        accessibilityLabel="Effacer la case sélectionnée"
-        style={({ pressed }) => [
-          styles.eraseKey,
-          {
-            backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
-            opacity: pressed ? 0.75 : 1,
-          },
-        ]}
-      >
-        <Ionicons name="backspace-outline" size={20} color={subText} />
-        <Text style={[styles.eraseText, { color: subText }]}>Effacer</Text>
-      </Pressable>
+      <View style={styles.actionRow}>
+        <Pressable
+          onPress={undoLastMove}
+          disabled={!canUndo}
+          accessibilityRole="button"
+          accessibilityLabel="Annuler le dernier coup"
+          accessibilityState={{ disabled: !canUndo }}
+          style={({ pressed }) => [
+            styles.key,
+            styles.actionKey,
+            !canUndo && styles.disabledKey,
+            {
+              backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+              opacity: !canUndo ? 0.32 : pressed ? 0.75 : 1,
+            },
+          ]}
+        >
+          <Ionicons name="return-down-back-outline" size={22} color={subText} />
+          <Text style={[styles.actionText, { color: subText }]}>Annuler</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={eraseCell}
+          accessibilityRole="button"
+          accessibilityLabel="Effacer la case selectionnee"
+          style={({ pressed }) => [
+            styles.key,
+            styles.actionKey,
+            {
+              backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+              opacity: pressed ? 0.75 : 1,
+            },
+          ]}
+        >
+          <Ionicons name="backspace-outline" size={22} color={subText} />
+          <Text style={[styles.actionText, { color: subText }]}>Effacer</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -207,6 +236,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: SPACING.sm,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
   key: {
     flex: 1,
     minHeight: 54,
@@ -223,21 +256,20 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '800',
   },
+  actionKey: {
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  disabledKey: {
+    elevation: 0,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
   completeIcon: {
     position: 'absolute',
     right: SPACING.sm,
     top: SPACING.sm,
-  },
-  eraseKey: {
-    minHeight: MIN_TOUCH_TARGET,
-    borderRadius: BORDER_RADIUS.md,
-    flexDirection: 'row',
-    gap: SPACING.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eraseText: {
-    fontSize: 14,
-    fontWeight: '800',
   },
 });
