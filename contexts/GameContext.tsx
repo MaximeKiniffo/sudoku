@@ -62,6 +62,14 @@ export interface SavedGameState {
 
 type HintedCells = Record<string, true>;
 
+type MoveSnapshot = {
+  playerGrid: Grid;
+  userCandidates: number[][][];
+  hintedCells: HintedCells;
+  selectedCell: { row: number; col: number } | null;
+  selectedDigit: number | null;
+};
+
 type SaveableGameState = Omit<SavedGameState, 'savedAt'> & {
   isHydrated: boolean;
   isSolvedFlag: boolean;
@@ -82,6 +90,8 @@ interface GameState {
   inputMode: InputMode;
   cellColors: Record<string, string>;
   threads: ThreadSnapshot[];
+  history: MoveSnapshot[];
+  canUndo: boolean;
   elapsedSeconds: number;
   timerActive: boolean;
   isSolvedFlag: boolean;
@@ -98,6 +108,7 @@ interface GameContextValue extends GameState {
   selectCell: (row: number, col: number) => void;
   placeDigit: (digit: number) => void;
   eraseCell: () => void;
+  undoLastMove: () => void;
   toggleCandidate: (digit: number) => void;
   setInputMode: (mode: InputMode) => void;
   setCellColor: (row: number, col: number, color: string) => void;
@@ -197,6 +208,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [cellColors, setCellColorsState] = useState<Record<string, string>>({});
   const [threads, setThreads] = useState<ThreadSnapshot[]>([]);
   const [hintedCells, setHintedCells] = useState<HintedCells>(createEmptyHintedCells);
+  const [history, setHistory] = useState<MoveSnapshot[]>([]);
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
@@ -352,6 +364,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     resumeTimer();
   }, [resumeTimer]);
 
+  const createMoveSnapshot = useCallback(
+    (): MoveSnapshot => ({
+      playerGrid: deepCopyGrid(playerGrid),
+      userCandidates: cloneCandidates(userCandidates),
+      hintedCells: cloneHintedCells(hintedCells),
+      selectedCell: selectedCell ? { ...selectedCell } : null,
+      selectedDigit,
+    }),
+    [hintedCells, playerGrid, selectedCell, selectedDigit, userCandidates]
+  );
+
+  const pushUndoSnapshot = useCallback(() => {
+    const snapshot = createMoveSnapshot();
+    setHistory((prev) => [...prev, snapshot]);
+  }, [createMoveSnapshot]);
+
   const restoreSavedState = useCallback(
     (saved: SavedGameState) => {
       setModeState(saved.mode ?? 'zen');
@@ -369,6 +397,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setCellColorsState(saved.cellColors ?? {});
       setThreads((saved.threads ?? []).map(normalizeThread));
       setHintedCells(cloneHintedCells(saved.hintedCells));
+      setHistory([]);
       const savedElapsedSeconds = saved.elapsedSeconds ?? 0;
       elapsedSecondsRef.current = savedElapsedSeconds;
       setElapsedSeconds(savedElapsedSeconds);
@@ -411,6 +440,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setCellColorsState({});
     setThreads([]);
     setHintedCells({});
+    setHistory([]);
     elapsedSecondsRef.current = 0;
     setElapsedSeconds(0);
     setIsSolvedFlag(false);
@@ -527,6 +557,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setCellColorsState({});
     setThreads([]);
     setHintedCells({});
+    setHistory([]);
     elapsedSecondsRef.current = 0;
     setElapsedSeconds(0);
     setIsSolvedFlag(false);
@@ -567,6 +598,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const { row, col } = selectedCell;
       if (initial[row][col]) return;
 
+      pushUndoSnapshot();
       const newGrid = deepCopyGrid(playerGrid);
       newGrid[row][col] = digit;
       setPlayerGrid(newGrid);
@@ -591,7 +623,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         triggerHaptic('success');
       }
     },
-    [selectedCell, initial, playerGrid, userCandidates, pauseTimer]
+    [selectedCell, initial, pushUndoSnapshot, playerGrid, userCandidates, pauseTimer]
   );
 
   const eraseCell = useCallback(() => {
@@ -600,7 +632,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     if (initial[row][col]) return;
     const key = getCellKey(row, col);
     const wasHinted = Boolean(hintedCells[key]);
+    if (playerGrid[row][col] === null && userCandidates[row][col].length === 0 && !wasHinted) {
+      return;
+    }
 
+    pushUndoSnapshot();
     const newGrid = deepCopyGrid(playerGrid);
     newGrid[row][col] = null;
     setPlayerGrid(newGrid);
@@ -618,7 +654,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     }
     setAutoCandidates(computeCandidates(newGrid));
     triggerHaptic('selection');
-  }, [selectedCell, initial, playerGrid, userCandidates, hintedCells]);
+  }, [selectedCell, initial, hintedCells, playerGrid, pushUndoSnapshot, userCandidates]);
+
+  const undoLastMove = useCallback(() => {
+    const last = history[history.length - 1];
+    if (!last) return;
+
+    setPlayerGrid(deepCopyGrid(last.playerGrid));
+    setUserCandidates(cloneCandidates(last.userCandidates));
+    setHintedCells(cloneHintedCells(last.hintedCells));
+    setSelectedCell(last.selectedCell ? { ...last.selectedCell } : null);
+    setSelectedDigit(last.selectedDigit);
+    setAutoCandidates(computeCandidates(last.playerGrid));
+    setIsSolvedFlag(false);
+    setHistory((prev) => prev.slice(0, -1));
+    triggerHaptic('selection');
+  }, [history]);
 
   const toggleCandidate = useCallback(
     (digit: number) => {
@@ -626,6 +677,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const { row, col } = selectedCell;
       if (initial[row][col] || playerGrid[row][col] !== null) return;
 
+      pushUndoSnapshot();
       const newCand = userCandidates.map((r) => r.map((c) => [...c]));
       const cell = newCand[row][col];
       const idx = cell.indexOf(digit);
@@ -634,7 +686,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setUserCandidates(newCand);
       triggerHaptic('selection');
     },
-    [selectedCell, initial, playerGrid, userCandidates]
+    [selectedCell, initial, playerGrid, pushUndoSnapshot, userCandidates]
   );
 
   const setInputMode = useCallback((m: InputMode) => {
@@ -674,6 +726,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setUserCandidates(snap.candidates.map((r) => r.map((c) => [...c])));
       setAutoCandidates(computeCandidates(snap.grid));
       setHintedCells(cloneHintedCells(snap.hintedCells));
+      setHistory([]);
       setIsSolvedFlag(false);
       triggerHaptic('impact');
     },
@@ -704,6 +757,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       for (let r = 0; r < 9; r++) {
         for (let c = 0; c < 9; c++) {
           if (!initial[r][c] && (playerGrid[r][c] === null || hasConflict(playerGrid, r, c))) {
+            pushUndoSnapshot();
             setSelectedCell({ row: r, col: c });
             const newGrid = deepCopyGrid(playerGrid);
             newGrid[r][c] = solution[r][c];
@@ -720,13 +774,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
     const { row, col } = selectedCell;
     if (initial[row][col]) return;
+    pushUndoSnapshot();
     const newGrid = deepCopyGrid(playerGrid);
     newGrid[row][col] = solution[row][col];
     setPlayerGrid(newGrid);
     setHintedCells((prev) => ({ ...prev, [getCellKey(row, col)]: true }));
     setAutoCandidates(computeCandidates(newGrid));
     handlePotentialSolve(newGrid);
-  }, [selectedCell, initial, playerGrid, solution, handlePotentialSolve]);
+  }, [selectedCell, initial, playerGrid, pushUndoSnapshot, solution, handlePotentialSolve]);
+
+  const canUndo = history.length > 0;
 
   const value: GameContextValue = {
     mode,
@@ -743,6 +800,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     inputMode,
     cellColors,
     threads,
+    history,
+    canUndo,
     elapsedSeconds,
     timerActive,
     isSolvedFlag,
@@ -756,6 +815,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     selectCell,
     placeDigit,
     eraseCell,
+    undoLastMove,
     toggleCandidate,
     setInputMode,
     setCellColor,
