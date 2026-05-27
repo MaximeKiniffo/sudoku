@@ -16,6 +16,7 @@ import {
   isSolved,
   deepCopyGrid,
   computeCandidates,
+  createInitialFromGrid,
 } from '@/utils/sudoku';
 import { Difficulty } from '@/utils/constants';
 
@@ -111,6 +112,7 @@ interface GameContextValue extends GameState {
   setDifficulty: (d: Difficulty) => void;
   updateSettings: (patch: Partial<Settings>) => void;
   startNewGame: () => void;
+  startCustomGame: (customPuzzle: Grid, customSolution: Grid) => void;
   selectCell: (row: number, col: number) => void;
   placeDigit: (digit: number) => void;
   eraseCell: () => void;
@@ -646,6 +648,41 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     triggerHaptic('impact');
   }, [difficulty, newGameMode, startTimer]);
 
+  const startCustomGame = useCallback(
+    (customPuzzle: Grid, customSolution: Grid) => {
+      storageOperationRef.current += 1;
+      const puzzleCopy = deepCopyGrid(customPuzzle);
+      const solutionCopy = deepCopyGrid(customSolution);
+      const initialGrid = createInitialFromGrid(puzzleCopy);
+      const playerG = deepCopyGrid(puzzleCopy);
+
+      setModeState(newGameMode);
+      setPuzzle(puzzleCopy);
+      setSolution(solutionCopy);
+      setInitial(initialGrid);
+      setPlayerGrid(playerG);
+      setUserCandidates(createEmptyCandidates());
+      setAutoCandidates(computeCandidates(playerG));
+      setSelectedCell(null);
+      setSelectedDigit(null);
+      setInputModeState('digit');
+      setCellColorsState({});
+      setThreads([]);
+      setHintedCells({});
+      setHistory([]);
+      setMistakeCount(0);
+      setHintCount(0);
+      elapsedSecondsRef.current = 0;
+      setElapsedSeconds(0);
+      setIsSolvedFlag(false);
+      setIsGameStarted(true);
+      setHasSavedGame(true);
+      startTimer();
+      triggerHaptic('impact');
+    },
+    [newGameMode, startTimer]
+  );
+
   const setMode = useCallback((m: AppMode) => {
     setModeState(m);
     setInputModeState('digit');
@@ -908,6 +945,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setDifficulty,
     updateSettings,
     startNewGame,
+    startCustomGame,
     selectCell,
     placeDigit,
     eraseCell,
