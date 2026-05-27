@@ -1,3 +1,4 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import {
   View,
@@ -10,60 +11,121 @@ import {
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
-import { DIFFICULTIES, SPACING, BORDER_RADIUS } from '@/utils/constants';
+import { SPACING, BORDER_RADIUS, MIN_TOUCH_TARGET } from '@/utils/constants';
 import DifficultyPicker from '@/components/DifficultyPicker';
 import ModeToggle from '@/components/ModeToggle';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { mode, difficulty, setDifficulty, startNewGame, settings } = useGame();
+  const {
+    mode,
+    difficulty,
+    setDifficulty,
+    startNewGame,
+    settings,
+    hasSavedGame,
+    isGameStarted,
+    isHydrated,
+    loadSavedGame,
+  } = useGame();
   const dark = settings.theme === 'dark';
   const bg = dark ? Colors.backgroundDark : Colors.background;
-  const text = dark ? Colors.white : Colors.accent;
+  const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
+  const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
 
-  const handlePlay = () => {
+  const handleNewGame = () => {
+    if (!isHydrated) return;
     startNewGame();
+    router.push('/game');
+  };
+
+  const handleContinue = async () => {
+    const ready = isGameStarted || (await loadSavedGame());
+    if (!ready) return;
     router.push('/game');
   };
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: bg }]}>
       <View style={styles.header}>
-        <View style={styles.headerLeft} />
-        <View style={styles.headerRight}>
-          <ModeToggle />
-          <Pressable
-            style={styles.settingsBtn}
-            onPress={() => router.push('/settings')}
-            hitSlop={12}
-          >
-            <Text style={[styles.settingsIcon, { color: Colors.secondary }]}>⚙</Text>
-          </Pressable>
-        </View>
+        <View />
+        <Pressable
+          style={styles.settingsBtn}
+          onPress={() => router.push('/settings')}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Ouvrir les paramètres"
+        >
+          <Ionicons name="settings-outline" size={24} color={subText} />
+        </Pressable>
       </View>
 
       <View style={styles.body}>
         <View style={styles.titleContainer}>
           <Text style={[styles.title, { color: text }]}>Sudoku</Text>
-          <Text style={[styles.subtitle, { color: Colors.secondary }]}>
+          <Text style={[styles.subtitle, { color: subText }]}>
             {mode === 'zen' ? 'Mode Zen' : 'Mode Expert'}
           </Text>
         </View>
 
-        <DifficultyPicker
-          difficulties={[...DIFFICULTIES]}
-          selected={difficulty}
-          onSelect={setDifficulty}
-          dark={dark}
-        />
+        <View style={styles.modeBlock}>
+          <Text style={[styles.blockLabel, { color: subText }]}>Mode de jeu</Text>
+          <ModeToggle showDescription />
+        </View>
 
-        <TouchableOpacity
-          style={[styles.playButton, { backgroundColor: Colors.accent }]}
-          onPress={handlePlay}
-          activeOpacity={0.85}
-        >
-          <Text style={styles.playButtonText}>Jouer</Text>
-        </TouchableOpacity>
+        <View style={styles.difficultyBlock}>
+          <Text style={[styles.blockLabel, { color: subText }]}>Difficulté</Text>
+          <DifficultyPicker
+            difficulties={['Facile', 'Moyen', 'Difficile', 'Expert']}
+            selected={difficulty}
+            onSelect={setDifficulty}
+            dark={dark}
+          />
+        </View>
+
+        <View style={styles.actions}>
+          {hasSavedGame && (
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                { backgroundColor: isHydrated ? Colors.accent : Colors.border },
+              ]}
+              onPress={handleContinue}
+              activeOpacity={0.85}
+              disabled={!isHydrated}
+              accessibilityRole="button"
+            >
+              <Text style={styles.primaryButtonText}>Continuer</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={[
+              hasSavedGame ? styles.secondaryButton : styles.primaryButton,
+              hasSavedGame
+                ? {
+                    borderColor: dark ? Colors.surfaceDark : Colors.border,
+                    backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+                  }
+                : { backgroundColor: Colors.accent },
+              !isHydrated && { opacity: 0.55 },
+            ]}
+            onPress={handleNewGame}
+            activeOpacity={0.85}
+            disabled={!isHydrated}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !isHydrated }}
+          >
+            <Text
+              style={[
+                hasSavedGame ? styles.secondaryButtonText : styles.primaryButtonText,
+                hasSavedGame && { color: text },
+              ]}
+            >
+              Nouvelle partie
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -81,14 +143,12 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.md,
     paddingBottom: SPACING.sm,
   },
-  headerLeft: { flex: 1 },
-  headerRight: {
-    flexDirection: 'row',
+  settingsBtn: {
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
     alignItems: 'center',
-    gap: SPACING.md,
+    justifyContent: 'center',
   },
-  settingsBtn: { padding: SPACING.xs },
-  settingsIcon: { fontSize: 22 },
   body: {
     flex: 1,
     justifyContent: 'center',
@@ -102,29 +162,60 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 52,
-    fontWeight: '700',
-    letterSpacing: -1,
+    fontWeight: '800',
+    letterSpacing: 0,
   },
   subtitle: {
     fontSize: 16,
-    fontWeight: '400',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    letterSpacing: 0,
   },
-  playButton: {
-    width: '80%',
-    paddingVertical: SPACING.md + 4,
+  modeBlock: {
+    width: '100%',
+    gap: SPACING.sm,
+  },
+  difficultyBlock: {
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  blockLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    alignSelf: 'center',
+  },
+  actions: {
+    width: '100%',
+    gap: SPACING.sm,
+    alignItems: 'center',
+  },
+  primaryButton: {
+    width: '100%',
+    minHeight: 54,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
+    justifyContent: 'center',
     elevation: 3,
     shadowColor: Colors.accent,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.22,
     shadowRadius: 8,
   },
-  playButtonText: {
+  primaryButtonText: {
     color: Colors.white,
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  secondaryButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
   },
 });

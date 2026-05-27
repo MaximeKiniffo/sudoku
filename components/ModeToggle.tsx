@@ -1,65 +1,126 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { useGame } from '@/contexts/GameContext';
+import { useGame, AppMode } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
-import { BORDER_RADIUS, SPACING } from '@/utils/constants';
+import { BORDER_RADIUS, MIN_TOUCH_TARGET, SPACING } from '@/utils/constants';
 
 interface Props {
   compact?: boolean;
+  showDescription?: boolean;
 }
 
-export default function ModeToggle({ compact }: Props) {
-  const { mode, setMode } = useGame();
-  const isZen = mode === 'zen';
+const OPTIONS: { value: AppMode; label: string; description: string }[] = [
+  {
+    value: 'zen',
+    label: 'Zen',
+    description: 'Chiffres uniquement',
+  },
+  {
+    value: 'expert',
+    label: 'Expert',
+    description: 'Notes, couleurs et indices',
+  },
+];
+
+export default function ModeToggle({ compact = false, showDescription = false }: Props) {
+  const { mode, setMode, settings } = useGame();
+  const dark = settings.theme === 'dark';
 
   return (
-    <Pressable
-      onPress={() => setMode(isZen ? 'expert' : 'zen')}
-      style={[styles.toggle, compact && styles.compact]}
+    <View
+      style={[
+        styles.segment,
+        compact ? styles.compactSegment : styles.fullSegment,
+        { backgroundColor: dark ? Colors.surfaceDark : Colors.surface },
+      ]}
     >
-      <View style={[styles.track, { backgroundColor: isZen ? Colors.surface : Colors.accent }]}>
-        <View style={[styles.thumb, isZen ? styles.thumbLeft : styles.thumbRight]} />
-      </View>
-      {!compact && (
-        <Text style={[styles.label, { color: Colors.secondary }]}>
-          {isZen ? 'Zen' : 'Expert'}
-        </Text>
-      )}
-    </Pressable>
+      {OPTIONS.map((option) => {
+        const active = mode === option.value;
+        return (
+          <Pressable
+            key={option.value}
+            onPress={() => setMode(option.value)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`Mode ${option.label}`}
+            style={({ pressed }) => [
+              styles.option,
+              compact ? styles.compactOption : styles.fullOption,
+              {
+                backgroundColor: active
+                  ? Colors.accent
+                  : dark
+                    ? Colors.cardBackgroundDark
+                    : Colors.cardBackground,
+                opacity: pressed ? 0.78 : 1,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.label,
+                compact && styles.compactLabel,
+                { color: active ? Colors.white : dark ? Colors.textPrimaryDark : Colors.textPrimary },
+              ]}
+            >
+              {option.label}
+            </Text>
+            {showDescription && !compact && (
+              <Text
+                style={[
+                  styles.description,
+                  { color: active ? Colors.white : dark ? Colors.textSecondaryDark : Colors.textSecondary },
+                ]}
+                numberOfLines={2}
+              >
+                {option.description}
+              </Text>
+            )}
+          </Pressable>
+        );
+      })}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  toggle: {
+  segment: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING.sm,
+    borderRadius: BORDER_RADIUS.lg,
+    padding: SPACING.xs,
+    gap: SPACING.xs,
   },
-  compact: {},
-  track: {
-    width: 46,
-    height: 26,
-    borderRadius: 13,
-    position: 'relative',
+  compactSegment: {
+    width: 108,
+  },
+  fullSegment: {
+    width: '100%',
+  },
+  option: {
+    flex: 1,
+    minHeight: MIN_TOUCH_TARGET,
     justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.sm,
   },
-  thumb: {
-    position: 'absolute',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: Colors.white,
-    top: 3,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
+  compactOption: {
+    minHeight: 36,
   },
-  thumbLeft: { left: 2 },
-  thumbRight: { left: 24 },
+  fullOption: {
+    paddingVertical: SPACING.sm,
+  },
   label: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  compactLabel: {
+    fontSize: 11,
+  },
+  description: {
+    marginTop: 2,
+    fontSize: 11,
     fontWeight: '600',
+    textAlign: 'center',
   },
 });

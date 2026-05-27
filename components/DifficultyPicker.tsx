@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { Difficulty } from '@/utils/constants';
 import { Colors } from '@/utils/colors';
-import { SPACING, BORDER_RADIUS } from '@/utils/constants';
+import { Difficulty, SPACING, BORDER_RADIUS, MIN_TOUCH_TARGET } from '@/utils/constants';
 
 interface Props {
   difficulties: Difficulty[];
@@ -20,6 +19,9 @@ export default function DifficultyPicker({ difficulties, selected, onSelect, dar
           <Pressable
             key={d}
             onPress={() => onSelect(d)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: active }}
+            accessibilityLabel={`Difficulté ${d}`}
             style={({ pressed }) => [
               styles.pill,
               {
@@ -36,7 +38,7 @@ export default function DifficultyPicker({ difficulties, selected, onSelect, dar
             <Text
               style={[
                 styles.pillText,
-                { color: active ? Colors.white : dark ? Colors.white : Colors.accent },
+                { color: active ? Colors.white : dark ? Colors.textPrimaryDark : Colors.textPrimary },
               ]}
             >
               {d}
@@ -56,6 +58,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pill: {
+    minHeight: MIN_TOUCH_TARGET,
+    justifyContent: 'center',
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderRadius: BORDER_RADIUS.xl,

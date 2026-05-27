@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import React, { useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,11 +8,14 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
-import { SPACING, BORDER_RADIUS } from '@/utils/constants';
+import { SPACING, BORDER_RADIUS, MIN_TOUCH_TARGET } from '@/utils/constants';
+import { hasConflict } from '@/utils/sudoku';
+import { formatElapsedTime } from '@/utils/time';
 import SudokuGrid from '@/components/SudokuGrid';
 import NumberPad from '@/components/NumberPad';
 import Timer from '@/components/Timer';
@@ -22,97 +26,200 @@ export default function GameScreen() {
   const router = useRouter();
   const {
     mode,
+    difficulty,
     settings,
     isSolvedFlag,
     elapsedSeconds,
-    eraseCell,
     startNewGame,
     isGameStarted,
+    playerGrid,
+    pauseGame,
+    resumeGame,
+    timerActive,
   } = useGame();
 
   const dark = settings.theme === 'dark';
   const bg = dark ? Colors.backgroundDark : Colors.background;
-  const text = dark ? Colors.white : Colors.accent;
+  const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
+  const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
+  const modeLabel = mode === 'zen' ? 'Zen' : 'Expert';
 
-  // If someone navigates here without starting a game
   useEffect(() => {
-    if (!isGameStarted) {
-      startNewGame();
-    }
-  }, []);
+    if (isGameStarted && !isSolvedFlag) resumeGame();
+  }, [isGameStarted, isSolvedFlag, resumeGame]);
 
-  const formatTime = (s: number) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
+  useEffect(() => {
+    return () => pauseGame();
+  }, [pauseGame]);
+
+  const stats = useMemo(() => {
+    let filled = 0;
+    let errors = 0;
+
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        if (playerGrid[row][col] !== null) {
+          filled += 1;
+          if (hasConflict(playerGrid, row, col)) errors += 1;
+        }
+      }
+    }
+
+    return {
+      filled,
+      errors,
+      percent: Math.round((filled / 81) * 100),
+    };
+  }, [playerGrid]);
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: bg }]}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
           hitSlop={12}
           style={styles.backBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Retour à l'accueil"
         >
-          <Text style={[styles.backText, { color: Colors.secondary }]}>‹ Accueil</Text>
+          <Ionicons name="chevron-back" size={20} color={subText} />
+          <Text style={[styles.backText, { color: subText }]}>Accueil</Text>
         </TouchableOpacity>
 
-        <Timer />
+        <View style={styles.timerCluster}>
+          <Timer />
+          <Pressable
+            onPress={timerActive ? pauseGame : resumeGame}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={timerActive ? 'Mettre le timer en pause' : 'Reprendre le timer'}
+            style={[
+              styles.pauseBtn,
+              { backgroundColor: dark ? Colors.surfaceDark : Colors.surface },
+            ]}
+          >
+            <Ionicons
+              name={timerActive ? 'pause-outline' : 'play-outline'}
+              size={18}
+              color={subText}
+            />
+          </Pressable>
+        </View>
 
         <View style={styles.headerRight}>
           <ModeToggle compact />
-          <TouchableOpacity onPress={() => router.push('/settings')} hitSlop={12}>
-            <Text style={{ color: Colors.secondary, fontSize: 20 }}>⚙</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/settings')}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Ouvrir les paramètres"
+            style={styles.iconBtn}
+          >
+            <Ionicons name="settings-outline" size={22} color={subText} />
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Grid */}
-      <View style={styles.gridWrapper}>
-        <SudokuGrid />
-      </View>
-
-      {/* Expert toolbar (above number pad, mode=expert) */}
-      {mode === 'expert' && (
-        <View style={styles.expertToolbarWrapper}>
-          <ExpertToolbar />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+      >
+        <View style={styles.progressBlock}>
+          <View style={styles.progressTextRow}>
+            <Text style={[styles.progressLabel, { color: subText }]}>Progression</Text>
+            <Text style={[styles.progressValue, { color: text }]}>
+              {stats.filled}/81 · {stats.percent}%
+            </Text>
+          </View>
+          <View style={[styles.progressTrack, { backgroundColor: dark ? Colors.surfaceDark : Colors.surface }]}>
+            <View style={[styles.progressFill, { width: `${stats.percent}%` }]} />
+          </View>
+          {settings.showErrors && stats.errors > 0 && (
+            <View style={styles.errorStatus}>
+              <Ionicons name="alert-circle" size={15} color={Colors.danger} />
+              <Text style={styles.errorStatusText}>
+                {stats.errors} conflit{stats.errors > 1 ? 's' : ''} à corriger
+              </Text>
+            </View>
+          )}
         </View>
-      )}
 
-      {/* Number pad */}
-      <View style={styles.numberPadWrapper}>
-        <View style={styles.eraseRow}>
-          <TouchableOpacity onPress={eraseCell} style={styles.eraseBtn}>
-            <Text style={[styles.eraseText, { color: Colors.secondary }]}>⌫</Text>
-          </TouchableOpacity>
+        <View style={styles.gridWrapper}>
+          <SudokuGrid />
         </View>
-        <NumberPad />
-      </View>
 
-      {/* Win modal */}
+        {mode === 'expert' && (
+          <View style={styles.expertToolbarWrapper}>
+            <ExpertToolbar />
+          </View>
+        )}
+
+        <View style={styles.numberPadWrapper}>
+          <NumberPad />
+        </View>
+      </ScrollView>
+
       <Modal visible={isSolvedFlag} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground }]}>
-            <Text style={[styles.modalEmoji]}>🎉</Text>
-            <Text style={[styles.modalTitle, { color: text }]}>Bravo !</Text>
-            <Text style={[styles.modalTime, { color: Colors.secondary }]}>
-              Temps : {formatTime(elapsedSeconds)}
+          <View
+            style={[
+              styles.modalCard,
+              { backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground },
+            ]}
+          >
+            <View style={[styles.modalIconWrap, { backgroundColor: Colors.successSurface }]}>
+              <Ionicons name="trophy-outline" size={42} color={Colors.success} />
+            </View>
+            <Text style={[styles.modalTitle, { color: text }]}>Bravo, grille terminée !</Text>
+            <Text style={[styles.modalSubtitle, { color: subText }]}>
+              Mode {modeLabel} · {difficulty}
             </Text>
+
+            <View style={styles.modalStats}>
+              <Stat label="Temps" value={formatElapsedTime(elapsedSeconds)} dark={dark} />
+              <Stat label="Erreurs" value={String(stats.errors)} dark={dark} />
+            </View>
+
             <TouchableOpacity
               style={[styles.modalBtn, { backgroundColor: Colors.accent }]}
-              onPress={() => { startNewGame(); }}
+              onPress={() => {
+                startNewGame();
+              }}
+              accessibilityRole="button"
             >
               <Text style={styles.modalBtnText}>Nouvelle partie</Text>
             </TouchableOpacity>
-            <Pressable onPress={() => router.back()} style={styles.modalSecondary}>
-              <Text style={[styles.modalSecondaryText, { color: Colors.secondary }]}>Retour à l'accueil</Text>
+            <Pressable
+              onPress={() => router.back()}
+              style={styles.modalSecondary}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.modalSecondaryText, { color: subText }]}>
+                Retour accueil
+              </Text>
             </Pressable>
           </View>
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+function Stat({ label, value, dark }: { label: string; value: string; dark: boolean }) {
+  return (
+    <View
+      style={[
+        styles.statCard,
+        { backgroundColor: dark ? Colors.surfaceDark : Colors.surface },
+      ]}
+    >
+      <Text style={[styles.statValue, { color: dark ? Colors.textPrimaryDark : Colors.textPrimary }]}>
+        {value}
+      </Text>
+      <Text style={[styles.statLabel, { color: dark ? Colors.textSecondaryDark : Colors.textSecondary }]}>
+        {label}
+      </Text>
+    </View>
   );
 }
 
@@ -124,13 +231,79 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.sm,
+    gap: SPACING.sm,
   },
-  backBtn: { paddingVertical: SPACING.xs },
-  backText: { fontSize: 16 },
+  backBtn: {
+    minHeight: MIN_TOUCH_TARGET,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backText: { fontSize: 15, fontWeight: '700' },
+  timerCluster: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  pauseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: SPACING.md,
+    gap: SPACING.sm,
+  },
+  iconBtn: {
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    paddingBottom: SPACING.lg,
+  },
+  progressBlock: {
+    paddingHorizontal: SPACING.md,
+    marginBottom: SPACING.sm,
+    gap: SPACING.xs,
+  },
+  progressTextRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  progressValue: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.accent,
+    borderRadius: 4,
+  },
+  errorStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  errorStatusText: {
+    color: Colors.danger,
+    fontSize: 12,
+    fontWeight: '800',
   },
   gridWrapper: {
     alignItems: 'center',
@@ -144,22 +317,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.lg,
   },
-  eraseRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: SPACING.xs,
-    paddingRight: SPACING.xs,
-  },
-  eraseBtn: { padding: SPACING.xs },
-  eraseText: { fontSize: 24 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.48)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalCard: {
-    width: '78%',
+    width: '86%',
     borderRadius: BORDER_RADIUS.xl,
     padding: SPACING.xl,
     alignItems: 'center',
@@ -169,17 +334,59 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 16,
   },
-  modalEmoji: { fontSize: 48, marginBottom: SPACING.sm },
-  modalTitle: { fontSize: 28, fontWeight: '700', marginBottom: SPACING.xs },
-  modalTime: { fontSize: 16, marginBottom: SPACING.lg },
+  modalIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    marginBottom: SPACING.xs,
+    textAlign: 'center',
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginBottom: SPACING.lg,
+  },
+  modalStats: {
+    flexDirection: 'row',
+    width: '100%',
+    gap: SPACING.sm,
+    marginBottom: SPACING.lg,
+  },
+  statCard: {
+    flex: 1,
+    borderRadius: BORDER_RADIUS.md,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  statLabel: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   modalBtn: {
     width: '100%',
-    paddingVertical: SPACING.md,
+    minHeight: 52,
     borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: SPACING.sm,
   },
-  modalBtnText: { color: Colors.white, fontSize: 16, fontWeight: '700' },
-  modalSecondary: { padding: SPACING.sm },
-  modalSecondaryText: { fontSize: 14 },
+  modalBtnText: { color: Colors.white, fontSize: 16, fontWeight: '800' },
+  modalSecondary: {
+    minHeight: MIN_TOUCH_TARGET,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+  },
+  modalSecondaryText: { fontSize: 14, fontWeight: '800' },
 });
