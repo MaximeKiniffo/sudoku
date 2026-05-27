@@ -9,7 +9,7 @@ export default function Timer() {
   const dark = settings.theme === 'dark';
 
   return (
-    <Text style={[styles.timer, { color: dark ? Colors.textSecondaryDark : Colors.textSecondary }]}>
+    <Text style={[styles.timer, { color: dark ? Colors.textPrimaryDark : Colors.textPrimary }]}>
       {formatElapsedTime(elapsedSeconds)}
     </Text>
   );
@@ -17,7 +17,7 @@ export default function Timer() {
 
 const styles = StyleSheet.create({
   timer: {
-    fontSize: 15,
+    fontSize: 17,
     fontVariant: ['tabular-nums'],
     fontWeight: '700',
   },
