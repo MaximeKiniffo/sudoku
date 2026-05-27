@@ -51,6 +51,8 @@ export default function GameScreen() {
   const pauseAccent = dark ? Colors.playerDigitDark : Colors.accent;
   const formattedElapsed = formatElapsedTime(elapsedSeconds);
   const celebrationScale = useRef(new Animated.Value(1)).current;
+  const mistakePulse = useRef(new Animated.Value(1)).current;
+  const previousMistakeCount = useRef(mistakeCount);
 
   useEffect(() => {
     if (isGameStarted && !isSolvedFlag) resumeGame();
@@ -85,6 +87,29 @@ export default function GameScreen() {
     pulse.start();
     return () => pulse.stop();
   }, [celebrationScale, isSolvedFlag]);
+
+  useEffect(() => {
+    if (mistakeCount <= previousMistakeCount.current) {
+      previousMistakeCount.current = mistakeCount;
+      return;
+    }
+
+    mistakePulse.stopAnimation();
+    mistakePulse.setValue(1);
+    Animated.sequence([
+      Animated.timing(mistakePulse, {
+        toValue: 1.08,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+      Animated.timing(mistakePulse, {
+        toValue: 1,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    previousMistakeCount.current = mistakeCount;
+  }, [mistakeCount, mistakePulse]);
 
   const handleShareScore = useCallback(() => {
     void Share.share({
@@ -216,14 +241,46 @@ export default function GameScreen() {
           <View style={[styles.progressTrack, { backgroundColor: dark ? Colors.surfaceDark : Colors.surface }]}>
             <View style={[styles.progressFill, { width: `${stats.percent}%` }]} />
           </View>
-          {settings.showErrors && stats.errors > 0 && (
-            <View style={styles.errorStatus}>
-              <Ionicons name="alert-circle" size={15} color={Colors.danger} />
-              <Text style={styles.errorStatusText}>
-                {stats.errors} conflit{stats.errors > 1 ? 's' : ''} à corriger
+          <View style={styles.statusRow}>
+            <Animated.View
+              style={[
+                styles.mistakeBadge,
+                {
+                  backgroundColor:
+                    mistakeCount > 0
+                      ? dark
+                        ? Colors.dangerSurfaceDark
+                        : Colors.dangerSurface
+                      : dark
+                        ? Colors.surfaceDark
+                        : Colors.surface,
+                  transform: [{ scale: mistakePulse }],
+                },
+              ]}
+            >
+              <Ionicons
+                name="alert-circle-outline"
+                size={15}
+                color={mistakeCount > 0 ? Colors.danger : subText}
+              />
+              <Text
+                style={[
+                  styles.mistakeBadgeText,
+                  { color: mistakeCount > 0 ? Colors.danger : subText },
+                ]}
+              >
+                Erreurs {mistakeCount}
               </Text>
-            </View>
-          )}
+            </Animated.View>
+            {settings.showErrors && stats.errors > 0 && (
+              <View style={styles.errorStatus}>
+                <Ionicons name="alert-circle" size={15} color={Colors.danger} />
+                <Text style={styles.errorStatusText}>
+                  {stats.errors} conflit{stats.errors > 1 ? 's' : ''} à corriger
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
 
         <View style={styles.gridWrapper}>
@@ -276,7 +333,7 @@ export default function GameScreen() {
                 },
               ]}
             >
-              <Text style={styles.celebrationEmoji}>🎉</Text>
+              <Ionicons name="trophy-outline" size={40} color={Colors.success} />
             </Animated.View>
             <Text style={[styles.modalTitle, { color: text }]}>Bravo, grille terminée !</Text>
             <Text style={[styles.modalSubtitle, { color: subText }]}>
@@ -481,6 +538,24 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     borderRadius: 4,
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: SPACING.sm,
+  },
+  mistakeBadge: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+    borderRadius: BORDER_RADIUS.md,
+    paddingHorizontal: SPACING.sm,
+  },
+  mistakeBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
   errorStatus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -543,10 +618,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
-  },
-  celebrationEmoji: {
-    fontSize: 40,
-    lineHeight: 48,
   },
   modalTitle: {
     fontSize: 24,

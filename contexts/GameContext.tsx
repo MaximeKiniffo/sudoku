@@ -193,7 +193,7 @@ const defaultGrid = createEmptyGrid();
 
 const GameContext = createContext<GameContextValue | null>(null);
 
-function triggerHaptic(type: 'selection' | 'impact' | 'success' = 'selection') {
+function triggerHaptic(type: 'selection' | 'impact' | 'success' | 'warning' = 'selection') {
   if (Platform.OS === 'web') return;
 
   if (type === 'impact') {
@@ -203,6 +203,13 @@ function triggerHaptic(type: 'selection' | 'impact' | 'success' = 'selection') {
 
   if (type === 'success') {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(
+      () => undefined
+    );
+    return;
+  }
+
+  if (type === 'warning') {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(
       () => undefined
     );
     return;
@@ -505,6 +512,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       await AsyncStorage.removeItem(GAME_STORAGE_KEY);
       if (operation === storageOperationRef.current) setHasSavedGame(false);
     });
+    triggerHaptic('success');
   }, [enqueueGameStorageOperation, pauseTimer]);
 
   useEffect(() => {
@@ -656,6 +664,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
+    triggerHaptic('selection');
   }, []);
 
   const selectCell = useCallback(
@@ -679,7 +688,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       newGrid[row][col] = digit;
       setPlayerGrid(newGrid);
       setSelectedDigit(digit);
-      if (digit !== solution[row][col]) {
+      const isMistake = digit !== solution[row][col];
+      if (isMistake) {
         setMistakeCount((count) => count + 1);
       }
 
@@ -694,7 +704,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
       setAutoCandidates(computeCandidates(newGrid));
-      triggerHaptic('impact');
+      triggerHaptic(isMistake ? 'warning' : 'impact');
 
       if (isSolved(newGrid)) {
         setIsSolvedFlag(true);

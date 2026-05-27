@@ -32,6 +32,7 @@ export default function SettingsScreen() {
     clearSavedGame,
   } = useGame();
   const dark = settings.theme === 'dark';
+  const pageBg = dark ? Colors.backgroundDark : Colors.background;
   const bg = dark ? Colors.cardBackgroundDark : Colors.cardBackground;
   const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
   const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
@@ -50,24 +51,12 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: dark ? Colors.backgroundDark : Colors.background }]}>
-      <View style={[styles.sheet, { backgroundColor: bg }]}>
-        <View style={styles.handle} />
-
-        <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: text }]}>Réglages</Text>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            hitSlop={12}
-            accessibilityRole="button"
-            accessibilityLabel="Fermer les réglages"
-            style={styles.closeBtn}
-          >
-            <Ionicons name="close" size={24} color={subText} />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="automatic"
+        contentContainerStyle={[styles.content, { backgroundColor: bg }]}
+      >
           <SectionTitle label="Jeu" color={subText} />
           <View style={[styles.modeRow, { borderColor: rowBorder }]}>
             <View style={styles.rowLabelBlock}>
@@ -165,8 +154,7 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </TouchableOpacity>
-        </ScrollView>
-      </View>
+      </ScrollView>
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -223,33 +211,10 @@ function SectionTitle({ label, color }: { label: string; color: string }) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  sheet: {
-    flex: 1,
-    borderTopLeftRadius: BORDER_RADIUS.xl,
-    borderTopRightRadius: BORDER_RADIUS.xl,
+  content: {
+    flexGrow: 1,
     padding: SPACING.lg,
     paddingBottom: SPACING.xl,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: 'center',
-    marginBottom: SPACING.lg,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  title: { fontSize: 24, fontWeight: '800' },
-  closeBtn: {
-    minWidth: MIN_TOUCH_TARGET,
-    minHeight: MIN_TOUCH_TARGET,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   sectionTitle: {
     fontSize: 11,
