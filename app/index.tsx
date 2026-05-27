@@ -19,8 +19,10 @@ export default function HomeScreen() {
   const router = useRouter();
   const {
     mode,
+    newGameMode,
     difficulty,
     setDifficulty,
+    setNewGameMode,
     startNewGame,
     settings,
     hasSavedGame,
@@ -32,6 +34,7 @@ export default function HomeScreen() {
   const bg = dark ? Colors.backgroundDark : Colors.background;
   const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
   const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
+  const hasActiveGame = isGameStarted || hasSavedGame;
 
   const handleNewGame = () => {
     if (!isHydrated) return;
@@ -64,13 +67,18 @@ export default function HomeScreen() {
         <View style={styles.titleContainer}>
           <Text style={[styles.title, { color: text }]}>Sudoku</Text>
           <Text style={[styles.subtitle, { color: subText }]}>
-            {mode === 'zen' ? 'Mode Zen' : 'Mode Expert'}
+            Nouvelle partie : {newGameMode === 'zen' ? 'Mode Zen' : 'Mode Expert'}
           </Text>
         </View>
 
         <View style={styles.modeBlock}>
           <Text style={[styles.blockLabel, { color: subText }]}>Mode de jeu</Text>
-          <ModeToggle showDescription />
+          <ModeToggle
+            showDescription
+            value={newGameMode}
+            onChange={setNewGameMode}
+            helperText={hasActiveGame ? `La partie à continuer reste en mode ${mode === 'zen' ? 'Zen' : 'Expert'}` : undefined}
+          />
         </View>
 
         <View style={styles.difficultyBlock}>
@@ -81,6 +89,9 @@ export default function HomeScreen() {
             onSelect={setDifficulty}
             dark={dark}
           />
+          <Text style={[styles.modeHint, { color: subText }]}>
+            Zen : indices et assistances · Expert : notes, threads, couleurs
+          </Text>
         </View>
 
         <View style={styles.actions}>
@@ -177,6 +188,13 @@ const styles = StyleSheet.create({
   difficultyBlock: {
     alignItems: 'center',
     gap: SPACING.sm,
+  },
+  modeHint: {
+    maxWidth: 320,
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 17,
+    textAlign: 'center',
   },
   blockLabel: {
     fontSize: 12,
