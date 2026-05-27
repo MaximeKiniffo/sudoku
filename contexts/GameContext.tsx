@@ -162,6 +162,29 @@ const normalizeThread = (thread: Partial<ThreadSnapshot>): ThreadSnapshot => ({
   label: thread.label ?? 'Thread',
 });
 
+const parseSavedGame = (raw: string): SavedGameState | null => {
+  try {
+    const saved = JSON.parse(raw) as Partial<SavedGameState>;
+
+    if (
+      !saved ||
+      typeof saved !== 'object' ||
+      !saved.isGameStarted ||
+      !Array.isArray(saved.puzzle) ||
+      !Array.isArray(saved.solution) ||
+      !Array.isArray(saved.initial) ||
+      !Array.isArray(saved.playerGrid) ||
+      !Array.isArray(saved.userCandidates)
+    ) {
+      return null;
+    }
+
+    return saved as SavedGameState;
+  } catch {
+    return null;
+  }
+};
+
 const defaultGrid = createEmptyGrid();
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -420,13 +443,26 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         setHasSavedGame(false);
         return false;
       }
-      restoreSavedState(JSON.parse(raw) as SavedGameState);
+      const saved = parseSavedGame(raw);
+      if (!saved) {
+        const operation = ++storageOperationRef.current;
+        await enqueueGameStorageOperation(async () => {
+          await AsyncStorage.removeItem(GAME_STORAGE_KEY);
+          if (operation === storageOperationRef.current) setHasSavedGame(false);
+        });
+        return false;
+      }
+      restoreSavedState(saved);
       return true;
     } catch {
-      setHasSavedGame(false);
+      const operation = ++storageOperationRef.current;
+      await enqueueGameStorageOperation(async () => {
+        await AsyncStorage.removeItem(GAME_STORAGE_KEY);
+        if (operation === storageOperationRef.current) setHasSavedGame(false);
+      });
       return false;
     }
-  }, [restoreSavedState]);
+  }, [enqueueGameStorageOperation, restoreSavedState]);
 
   const clearSavedGame = useCallback(async () => {
     const operation = ++storageOperationRef.current;
@@ -468,13 +504,23 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
 
         if (gameRaw) {
-          restoreSavedState(JSON.parse(gameRaw) as SavedGameState);
+          const saved = parseSavedGame(gameRaw);
+
+          if (saved) {
+            restoreSavedState(saved);
+          } else {
+            await AsyncStorage.removeItem(GAME_STORAGE_KEY);
+            setHasSavedGame(false);
+          }
         } else if (settingsRaw) {
           setSettings({ ...defaultSettings, ...(JSON.parse(settingsRaw) as Settings) });
           setHasSavedGame(false);
         }
       } catch {
-        if (!cancelled) setHasSavedGame(false);
+        if (!cancelled) {
+          setHasSavedGame(false);
+          void AsyncStorage.removeItem(GAME_STORAGE_KEY).catch(() => undefined);
+        }
       } finally {
         if (!cancelled) setIsHydrated(true);
       }
