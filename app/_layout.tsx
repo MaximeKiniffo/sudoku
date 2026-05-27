@@ -1,24 +1,41 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import { GameProvider, useGame } from '@/contexts/GameContext';
+import { Colors } from '@/utils/colors';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+function RootStack() {
+  const { settings } = useGame();
+  const dark = settings.theme === 'dark';
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="game" />
+        <Stack.Screen
+          name="settings"
+          options={{
+            title: 'Réglages',
+            headerShown: true,
+            animation: 'slide_from_right',
+            headerStyle: {
+              backgroundColor: dark ? Colors.backgroundDark : Colors.background,
+            },
+            headerTintColor: dark ? Colors.textPrimaryDark : Colors.textPrimary,
+            headerTitleStyle: {
+              fontWeight: '800',
+            },
+          }}
+        />
+      </Stack>
+      <StatusBar style={dark ? 'light' : 'dark'} />
+    </>
+  );
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <GameProvider>
+      <RootStack />
+    </GameProvider>
   );
 }

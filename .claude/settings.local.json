@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(node -e \"const s = require\\('./node_modules/sudoku'\\); const p = s.makepuzzle\\(\\); console.log\\('puzzle type:', typeof p, Array.isArray\\(p\\), p.length\\); console.log\\('first 9:', p.slice\\(0,9\\)\\); const sol = s.solvepuzzle\\(p\\); console.log\\('solution type:', typeof sol, sol.length, sol.slice\\(0,9\\)\\);\")"
+    ]
+  }
+}
