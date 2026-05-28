@@ -229,9 +229,9 @@ export default function GameScreen() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, mode === 'expert' && styles.expertContent]}
       >
-        <View style={styles.progressBlock}>
+        <View style={[styles.progressBlock, mode === 'expert' && styles.expertProgressBlock]}>
           <View style={styles.progressTextRow}>
             <Text style={[styles.progressLabel, { color: subText }]}>Progression</Text>
             <Text style={[styles.progressValue, { color: text }]}>
@@ -283,7 +283,7 @@ export default function GameScreen() {
           </View>
         </View>
 
-        <View style={styles.gridWrapper}>
+        <View style={[styles.gridWrapper, mode === 'expert' && styles.expertGridWrapper]}>
           <SudokuGrid />
         </View>
 
@@ -311,7 +311,7 @@ export default function GameScreen() {
           </View>
         )}
 
-        <View style={styles.numberPadWrapper}>
+        <View style={[styles.numberPadWrapper, mode === 'expert' && styles.expertNumberPadWrapper]}>
           <NumberPad />
         </View>
       </ScrollView>
@@ -509,10 +509,16 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: SPACING.lg,
   },
+  expertContent: {
+    paddingBottom: SPACING.sm,
+  },
   progressBlock: {
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
     gap: SPACING.xs,
+  },
+  expertProgressBlock: {
+    marginBottom: SPACING.xs,
   },
   progressTextRow: {
     flexDirection: 'row',
@@ -570,6 +576,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginVertical: SPACING.sm,
   },
+  expertGridWrapper: {
+    marginVertical: SPACING.xs,
+  },
   expertToolbarWrapper: {
     paddingHorizontal: SPACING.md,
     marginBottom: SPACING.sm,
@@ -593,6 +602,9 @@ const styles = StyleSheet.create({
   numberPadWrapper: {
     paddingHorizontal: SPACING.md,
     paddingBottom: SPACING.lg,
+  },
+  expertNumberPadWrapper: {
+    paddingBottom: SPACING.sm,
   },
   modalOverlay: {
     flex: 1,
