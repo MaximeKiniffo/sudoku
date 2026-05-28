@@ -4,13 +4,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   Switch,
   TouchableOpacity,
   ScrollView,
   Modal,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
@@ -51,7 +51,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: pageBg }]}>
+    <SafeAreaView edges={['right', 'bottom', 'left']} style={[styles.safe, { backgroundColor: pageBg }]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="automatic"

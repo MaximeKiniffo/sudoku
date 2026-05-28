@@ -5,10 +5,10 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   ScrollView,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useGame } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
 import { SPACING, BORDER_RADIUS, MIN_TOUCH_TARGET } from '@/utils/constants';
@@ -118,7 +118,7 @@ export default function CreateScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: bg }]}>
+    <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={[styles.safe, { backgroundColor: bg }]}>
       <View style={styles.header}>
         <Pressable
           onPress={() => router.back()}

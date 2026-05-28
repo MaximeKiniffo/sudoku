@@ -5,9 +5,9 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   Pressable,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useGame } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
@@ -54,7 +54,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: bg }]}>
+    <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={[styles.safe, { backgroundColor: bg }]}>
       <View style={styles.header}>
         <View />
         <Pressable

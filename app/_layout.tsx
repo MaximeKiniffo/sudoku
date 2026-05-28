@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GameProvider, useGame } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
 
@@ -35,8 +36,10 @@ function RootStack() {
 
 export default function RootLayout() {
   return (
-    <GameProvider>
-      <RootStack />
-    </GameProvider>
+    <SafeAreaProvider>
+      <GameProvider>
+        <RootStack />
+      </GameProvider>
+    </SafeAreaProvider>
   );
 }
