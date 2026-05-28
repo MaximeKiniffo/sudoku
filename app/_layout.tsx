@@ -11,6 +11,7 @@ function RootStack() {
       <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="game" />
+        <Stack.Screen name="create" />
         <Stack.Screen
           name="settings"
           options={{

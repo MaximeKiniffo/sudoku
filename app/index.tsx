@@ -42,6 +42,11 @@ export default function HomeScreen() {
     router.push('/game');
   };
 
+  const handleCreateCustom = () => {
+    if (!isHydrated) return;
+    router.push('/create');
+  };
+
   const handleContinue = async () => {
     const ready = isGameStarted || (await loadSavedGame());
     if (!ready) return;
@@ -134,6 +139,32 @@ export default function HomeScreen() {
               ]}
             >
               Nouvelle partie
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.createButton,
+              {
+                borderColor: dark ? Colors.surfaceDark : Colors.border,
+                backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+                opacity: isHydrated ? 1 : 0.55,
+              },
+            ]}
+            onPress={handleCreateCustom}
+            activeOpacity={0.85}
+            disabled={!isHydrated}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !isHydrated }}
+            accessibilityLabel="Creer un sudoku"
+          >
+            <Ionicons
+              name="grid-outline"
+              size={19}
+              color={dark ? Colors.textPrimaryDark : Colors.textPrimary}
+            />
+            <Text style={[styles.createButtonText, { color: text }]}>
+              Creer un sudoku
             </Text>
           </TouchableOpacity>
         </View>
@@ -233,6 +264,20 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  createButton: {
+    width: '100%',
+    minHeight: 52,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    flexDirection: 'row',
+    gap: SPACING.sm,
+  },
+  createButtonText: {
     fontSize: 16,
     fontWeight: '800',
   },
