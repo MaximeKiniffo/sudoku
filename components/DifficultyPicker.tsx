@@ -28,9 +28,9 @@ export default function DifficultyPicker({ difficulties, selected, onSelect, dar
                 backgroundColor: active
                   ? Colors.accent
                   : dark
-                  ? Colors.surfaceDark
-                  : Colors.surface,
-                borderColor: active ? Colors.accent : dark ? Colors.surfaceDark : Colors.border,
+                    ? Colors.cardBackgroundDark
+                    : Colors.cardBackground,
+                borderColor: active ? Colors.accent : dark ? Colors.borderDark : Colors.border,
                 opacity: pressed ? 0.8 : 1,
               },
             ]}
@@ -67,6 +67,6 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '800',
   },
 });

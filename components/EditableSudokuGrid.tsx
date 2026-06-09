@@ -55,7 +55,7 @@ export default function EditableSudokuGrid({
             const borderBottom = (row + 1) % 3 === 0 && row < 8;
             const strongBorderColor = dark ? Colors.borderStrongDark : Colors.borderStrong;
 
-            let bgColor = dark ? Colors.cellBackgroundDark : 'transparent';
+            let bgColor = dark ? Colors.cellBackgroundDark : Colors.cellBackground;
             if (isConflict) bgColor = dark ? Colors.dangerSurfaceDark : Colors.dangerSurface;
             else if (isSelected) bgColor = dark ? Colors.selectedDark : Colors.selected;
             else if (isSameDigit) bgColor = dark ? Colors.sameDigitDark : Colors.sameDigit;
@@ -122,13 +122,13 @@ const styles = StyleSheet.create({
     width: GRID_SIZE,
     height: GRID_SIZE,
     borderWidth: 2,
-    borderRadius: 6,
+    borderRadius: 8,
     overflow: 'hidden',
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
   },
   row: {
     flexDirection: 'row',
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.cellBorder,
-    borderRadius: BORDER_RADIUS.sm - 2,
+    borderRadius: BORDER_RADIUS.sm,
   },
   cellDark: {
     borderColor: Colors.cellBorderDark,

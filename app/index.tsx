@@ -34,6 +34,9 @@ export default function HomeScreen() {
   const bg = dark ? Colors.backgroundDark : Colors.background;
   const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
   const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
+  const surface = dark ? Colors.surfaceDark : Colors.surface;
+  const card = dark ? Colors.cardBackgroundDark : Colors.cardBackground;
+  const border = dark ? Colors.borderDark : Colors.border;
   const hasActiveGame = isGameStarted || hasSavedGame;
 
   const handleNewGame = () => {
@@ -56,9 +59,18 @@ export default function HomeScreen() {
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={[styles.safe, { backgroundColor: bg }]}>
       <View style={styles.header}>
-        <View />
+        <View style={[styles.appMark, { backgroundColor: Colors.accentSoft }]}>
+          <Ionicons
+            name="grid-outline"
+            size={20}
+            color={dark ? Colors.playerDigitDark : Colors.accent}
+          />
+        </View>
         <Pressable
-          style={styles.settingsBtn}
+          style={[
+            styles.settingsBtn,
+            { backgroundColor: surface, borderColor: border },
+          ]}
           onPress={() => router.push('/settings')}
           hitSlop={12}
           accessibilityRole="button"
@@ -70,6 +82,14 @@ export default function HomeScreen() {
 
       <View style={styles.body}>
         <View style={styles.titleContainer}>
+          <View style={[styles.kicker, { backgroundColor: surface }]}>
+            <Ionicons
+              name="sparkles-outline"
+              size={14}
+              color={dark ? Colors.playerDigitDark : Colors.accent}
+            />
+            <Text style={[styles.kickerText, { color: subText }]}>À toi de jouer</Text>
+          </View>
           <Text style={[styles.title, { color: text }]}>Sudoku</Text>
           <Text style={[styles.subtitle, { color: subText }]}>
             Nouvelle partie : {newGameMode === 'zen' ? 'Mode Zen' : 'Mode Expert'}
@@ -95,7 +115,7 @@ export default function HomeScreen() {
             dark={dark}
           />
           <Text style={[styles.modeHint, { color: subText }]}>
-            Zen : indices et assistances · Expert : notes, threads, couleurs
+            Zen : indices et assistances. Expert : notes, threads, couleurs.
           </Text>
         </View>
 
@@ -111,6 +131,7 @@ export default function HomeScreen() {
               disabled={!isHydrated}
               accessibilityRole="button"
             >
+              <Ionicons name="play-skip-forward-outline" size={20} color={Colors.white} />
               <Text style={styles.primaryButtonText}>Continuer</Text>
             </TouchableOpacity>
           )}
@@ -120,8 +141,8 @@ export default function HomeScreen() {
               hasSavedGame ? styles.secondaryButton : styles.primaryButton,
               hasSavedGame
                 ? {
-                    borderColor: dark ? Colors.surfaceDark : Colors.border,
-                    backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+                    borderColor: border,
+                    backgroundColor: card,
                   }
                 : { backgroundColor: Colors.accent },
               !isHydrated && { opacity: 0.55 },
@@ -132,6 +153,11 @@ export default function HomeScreen() {
             accessibilityRole="button"
             accessibilityState={{ disabled: !isHydrated }}
           >
+            <Ionicons
+              name={hasSavedGame ? 'add-circle-outline' : 'play-outline'}
+              size={20}
+              color={hasSavedGame ? text : Colors.white}
+            />
             <Text
               style={[
                 hasSavedGame ? styles.secondaryButtonText : styles.primaryButtonText,
@@ -146,8 +172,8 @@ export default function HomeScreen() {
             style={[
               styles.createButton,
               {
-                borderColor: dark ? Colors.surfaceDark : Colors.border,
-                backgroundColor: dark ? Colors.cardBackgroundDark : Colors.cardBackground,
+                borderColor: border,
+                backgroundColor: card,
                 opacity: isHydrated ? 1 : 0.55,
               },
             ]}
@@ -156,7 +182,7 @@ export default function HomeScreen() {
             disabled={!isHydrated}
             accessibilityRole="button"
             accessibilityState={{ disabled: !isHydrated }}
-            accessibilityLabel="Creer un sudoku"
+            accessibilityLabel="Créer un sudoku"
           >
             <Ionicons
               name="grid-outline"
@@ -164,7 +190,7 @@ export default function HomeScreen() {
               color={dark ? Colors.textPrimaryDark : Colors.textPrimary}
             />
             <Text style={[styles.createButtonText, { color: text }]}>
-              Creer un sudoku
+              Créer un sudoku
             </Text>
           </TouchableOpacity>
         </View>
@@ -188,6 +214,15 @@ const styles = StyleSheet.create({
   settingsBtn: {
     minWidth: MIN_TOUCH_TARGET,
     minHeight: MIN_TOUCH_TARGET,
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appMark: {
+    width: MIN_TOUCH_TARGET,
+    height: MIN_TOUCH_TARGET,
+    borderRadius: BORDER_RADIUS.lg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -200,7 +235,20 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     alignItems: 'center',
+    gap: SPACING.sm,
+  },
+  kicker: {
+    minHeight: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.xs,
+    paddingHorizontal: SPACING.md,
+    borderRadius: BORDER_RADIUS.xl,
+  },
+  kickerText: {
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
   },
   title: {
     fontSize: 52,
@@ -242,6 +290,8 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 54,
     borderRadius: BORDER_RADIUS.lg,
+    flexDirection: 'row',
+    gap: SPACING.sm,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 3,
@@ -259,6 +309,8 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 52,
     borderRadius: BORDER_RADIUS.lg,
+    flexDirection: 'row',
+    gap: SPACING.sm,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,

@@ -1,4 +1,5 @@
 import React from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useGame, AppMode } from '@/contexts/GameContext';
 import { Colors } from '@/utils/colors';
@@ -14,16 +15,20 @@ interface Props {
   onChange?: (mode: AppMode) => void;
 }
 
-const OPTIONS: { value: AppMode; label: string; description: string }[] = [
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const OPTIONS: { value: AppMode; label: string; description: string; icon: IconName }[] = [
   {
     value: 'zen',
     label: 'Zen',
     description: 'Indices et assistances, jeu simple',
+    icon: 'leaf-outline',
   },
   {
     value: 'expert',
     label: 'Expert',
     description: 'Notes, threads et couleurs',
+    icon: 'construct-outline',
   },
 ];
 
@@ -75,19 +80,27 @@ export default function ModeToggle({
                     : dark
                       ? Colors.cardBackgroundDark
                       : Colors.cardBackground,
+                  borderColor: active ? Colors.accent : dark ? Colors.borderDark : Colors.border,
                   opacity: pressed && !disabled ? 0.78 : 1,
                 },
               ]}
             >
-              <Text
-                style={[
-                  styles.label,
-                  compact && styles.compactLabel,
-                  { color: active ? Colors.white : dark ? Colors.textPrimaryDark : Colors.textPrimary },
-                ]}
-              >
-                {option.label}
-              </Text>
+              <View style={styles.labelRow}>
+                <Ionicons
+                  name={option.icon}
+                  size={compact ? 12 : 15}
+                  color={active ? Colors.white : dark ? Colors.playerDigitDark : Colors.accent}
+                />
+                <Text
+                  style={[
+                    styles.label,
+                    compact && styles.compactLabel,
+                    { color: active ? Colors.white : dark ? Colors.textPrimaryDark : Colors.textPrimary },
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </View>
               {showDescription && !compact && (
                 <Text
                   style={[
@@ -131,6 +144,7 @@ const styles = StyleSheet.create({
   option: {
     flex: 1,
     minHeight: MIN_TOUCH_TARGET,
+    borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: BORDER_RADIUS.md,
@@ -141,6 +155,12 @@ const styles = StyleSheet.create({
   },
   fullOption: {
     paddingVertical: SPACING.sm,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACING.xs,
   },
   label: {
     fontSize: 14,

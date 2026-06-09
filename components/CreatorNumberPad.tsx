@@ -33,6 +33,7 @@ export default function CreatorNumberPad({
         styles.pad,
         {
           backgroundColor: dark ? Colors.surfaceDark : Colors.surface,
+          borderColor: dark ? Colors.borderDark : Colors.border,
         },
       ]}
     >
@@ -52,6 +53,7 @@ export default function CreatorNumberPad({
                     styles.key,
                     {
                       backgroundColor: active ? Colors.accent : keySurface,
+                      borderColor: active ? Colors.accent : dark ? Colors.borderDark : Colors.border,
                       opacity: pressed ? 0.75 : 1,
                     },
                   ]}
@@ -74,11 +76,12 @@ export default function CreatorNumberPad({
       <Pressable
         onPress={onErase}
         accessibilityRole="button"
-        accessibilityLabel="Effacer la case selectionnee"
+        accessibilityLabel="Effacer la case sélectionnée"
         style={({ pressed }) => [
           styles.eraseKey,
           {
             backgroundColor: keySurface,
+            borderColor: dark ? Colors.borderDark : Colors.border,
             opacity: pressed ? 0.75 : 1,
           },
         ]}
@@ -93,6 +96,7 @@ export default function CreatorNumberPad({
 const styles = StyleSheet.create({
   pad: {
     borderRadius: BORDER_RADIUS.lg,
+    borderWidth: 1,
     padding: SPACING.sm,
     gap: SPACING.sm,
     elevation: 2,
@@ -111,6 +115,7 @@ const styles = StyleSheet.create({
   key: {
     flex: 1,
     minHeight: 54,
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS.md,
     justifyContent: 'center',
     alignItems: 'center',
@@ -121,6 +126,7 @@ const styles = StyleSheet.create({
   },
   eraseKey: {
     minHeight: MIN_TOUCH_TARGET,
+    borderWidth: 1,
     borderRadius: BORDER_RADIUS.md,
     flexDirection: 'row',
     gap: SPACING.sm,

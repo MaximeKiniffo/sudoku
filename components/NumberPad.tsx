@@ -85,7 +85,7 @@ export default function NumberPad() {
                 accessibilityState={{ disabled, selected: active }}
                 accessibilityLabel={
                   complete
-                    ? `Chiffre ${digit} complete`
+                    ? `Chiffre ${digit} complété`
                     : inputMode === 'candidate'
                       ? `Ajouter ou retirer la note ${digit}`
                       : `Entrer le chiffre ${digit}`
@@ -106,7 +106,9 @@ export default function NumberPad() {
                         : dark
                           ? Colors.borderStrongDark
                           : Colors.borderStrong
-                      : 'transparent',
+                      : dark
+                        ? Colors.borderDark
+                        : Colors.border,
                     opacity: disabled
                       ? 0.32
                       : complete && inputMode === 'digit' && !active
@@ -192,7 +194,7 @@ export default function NumberPad() {
         isExpertMode && styles.expertPad,
         {
           backgroundColor: isCandidateMode ? candidateSurface : bg,
-          borderColor: isCandidateMode ? Colors.accent : 'transparent',
+          borderColor: isCandidateMode ? Colors.accent : dark ? Colors.borderDark : Colors.border,
         },
       ]}
     >
@@ -230,7 +232,7 @@ export default function NumberPad() {
         <Pressable
           onPress={eraseCell}
           accessibilityRole="button"
-          accessibilityLabel="Effacer la case selectionnee"
+          accessibilityLabel="Effacer la case sélectionnée"
           style={({ pressed }) => [
             styles.key,
             styles.actionKey,
