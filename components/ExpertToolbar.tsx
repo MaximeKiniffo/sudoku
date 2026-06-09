@@ -16,11 +16,11 @@ import { SPACING, BORDER_RADIUS, MIN_TOUCH_TARGET } from '@/utils/constants';
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const CELL_COLORS = [
-  { key: 'Jaune', color: '#FFE082' },
-  { key: 'Vert', color: '#A5D6A7' },
-  { key: 'Rouge', color: '#EF9A9A' },
-  { key: 'Violet', color: '#CE93D8' },
-  { key: 'Cyan', color: '#80DEEA' },
+  { key: 'Jaune', color: '#FDE68A' },
+  { key: 'Vert', color: '#BBF7D0' },
+  { key: 'Rouge', color: '#FCA5A5' },
+  { key: 'Violet', color: '#C4B5FD' },
+  { key: 'Cyan', color: '#A5F3FC' },
 ];
 
 export default function ExpertToolbar() {
@@ -208,6 +208,7 @@ function ToolBtn({
             : dark
               ? Colors.cardBackgroundDark
               : Colors.cardBackground,
+          borderColor: active ? Colors.accent : dark ? Colors.borderDark : Colors.border,
           opacity: pressed ? 0.75 : 1,
         },
       ]}
@@ -241,6 +242,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: MIN_TOUCH_TARGET,
+    borderWidth: 1,
     paddingVertical: 0,
     borderRadius: BORDER_RADIUS.md,
     gap: 2,

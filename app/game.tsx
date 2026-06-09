@@ -46,6 +46,8 @@ export default function GameScreen() {
   const bg = dark ? Colors.backgroundDark : Colors.background;
   const text = dark ? Colors.textPrimaryDark : Colors.textPrimary;
   const subText = dark ? Colors.textSecondaryDark : Colors.textSecondary;
+  const card = dark ? Colors.cardBackgroundDark : Colors.cardBackground;
+  const border = dark ? Colors.borderDark : Colors.border;
   const modeLabel = mode === 'zen' ? 'Zen' : 'Expert';
   const isPaused = isGameStarted && !isSolvedFlag && !timerActive;
   const pauseAccent = dark ? Colors.playerDigitDark : Colors.accent;
@@ -231,7 +233,13 @@ export default function GameScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.content, mode === 'expert' && styles.expertContent]}
       >
-        <View style={[styles.progressBlock, mode === 'expert' && styles.expertProgressBlock]}>
+        <View
+          style={[
+            styles.progressBlock,
+            mode === 'expert' && styles.expertProgressBlock,
+            { backgroundColor: card, borderColor: border },
+          ]}
+        >
           <View style={styles.progressTextRow}>
             <Text style={[styles.progressLabel, { color: subText }]}>Progression</Text>
             <Text style={[styles.progressValue, { color: text }]}>
@@ -513,9 +521,18 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.sm,
   },
   progressBlock: {
+    marginHorizontal: SPACING.md,
     paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
     marginBottom: SPACING.sm,
+    borderWidth: 1,
+    borderRadius: BORDER_RADIUS.lg,
     gap: SPACING.xs,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
   expertProgressBlock: {
     marginBottom: SPACING.xs,

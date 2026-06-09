@@ -79,7 +79,7 @@ export default function GridCell({ row, col }: Props) {
     []
   );
 
-  let bgColor: string = dark ? Colors.cellBackgroundDark : 'transparent';
+  let bgColor: string = dark ? Colors.cellBackgroundDark : Colors.cellBackground;
   if (mistakeFlash || conflict) bgColor = dark ? Colors.dangerSurfaceDark : Colors.dangerSurface;
   else if (customColor) bgColor = customColor;
   else if (isSelected) bgColor = dark ? Colors.selectedDark : Colors.selected;
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: Colors.cellBorder,
-    borderRadius: BORDER_RADIUS.sm - 2,
+    borderRadius: BORDER_RADIUS.sm,
   },
   cellDark: {
     borderColor: Colors.cellBorderDark,

@@ -49,7 +49,7 @@ export default function CreateScreen() {
     (conflictCells.size > 0
       ? {
           tone: 'error' as const,
-          message: 'Conflit detecte dans une ligne, colonne ou bloc.',
+          message: 'Conflit détecté dans une ligne, colonne ou bloc.',
         }
       : null);
 
@@ -62,7 +62,7 @@ export default function CreateScreen() {
     if (!selectedCell) {
       setFeedback({
         tone: 'error',
-        message: 'Selectionne une case avant de placer un chiffre.',
+        message: 'Sélectionne une case avant de placer un chiffre.',
       });
       return;
     }
@@ -79,7 +79,7 @@ export default function CreateScreen() {
     if (!selectedCell) {
       setFeedback({
         tone: 'error',
-        message: 'Selectionne une case a effacer.',
+        message: 'Sélectionne une case à effacer.',
       });
       return;
     }
@@ -124,14 +124,14 @@ export default function CreateScreen() {
           onPress={() => router.back()}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Retour a l'accueil"
+          accessibilityLabel="Retour à l'accueil"
           style={styles.backBtn}
         >
           <Ionicons name="chevron-back" size={20} color={subText} />
           <Text style={[styles.backText, { color: subText }]}>Accueil</Text>
         </Pressable>
 
-        <Text style={[styles.headerTitle, { color: text }]}>Creer un sudoku</Text>
+        <Text style={[styles.headerTitle, { color: text }]}>Créer un sudoku</Text>
 
         <Pressable
           onPress={handleReset}
@@ -299,6 +299,11 @@ const styles = StyleSheet.create({
     borderRadius: BORDER_RADIUS.lg,
     padding: SPACING.md,
     gap: SPACING.sm,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
   statusTopRow: {
     minHeight: 44,
@@ -364,6 +369,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: SPACING.sm,
+    elevation: 3,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
   },
   primaryButtonText: {
     color: Colors.white,
